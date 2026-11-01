@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Offline Task Organizer</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' rx='3' fill='%230c66e4'/%3E%3Crect x='3' y='3' width='3' height='10' rx='1' fill='white'/%3E%3Crect x='7' y='3' width='3' height='6' rx='1' fill='white'/%3E%3Crect x='11' y='3' width='2' height='8' rx='1' fill='white'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="/css/app.css">
+</head>
+<body>
+  <a class="skip-link" href="#workspace">Skip to workspace</a>
+  <div id="app" class="app" data-sidebar="closed">
+    <aside id="sidebar" class="sidebar" aria-label="Project navigation"></aside>
+    <div class="sidebar-scrim" id="sidebar-scrim" hidden></div>
+    <div class="main">
+      <header id="header" class="header"></header>
+      <main id="workspace" class="workspace" tabindex="-1"></main>
+    </div>
+    <aside id="details" class="details" aria-label="Task details" hidden></aside>
+  </div>
+  <div id="live" class="sr-only" role="status" aria-live="polite"></div>
+  <div id="toasts" class="toasts" aria-live="assertive"></div>
+  <noscript><p style="padding:2rem">This application needs JavaScript enabled in your browser. It runs entirely on this computer.</p></noscript>
+  <script type="module" src="/js/app.js"></script>
+</body>
+</html>

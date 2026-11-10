@@ -1,0 +1,217 @@
+References
+
+The creative must clearly convey Bulldozer Master's realistic, masculine, industrial art style and visually satisfying crushing effects.
+
+Map and Flow: Video Tiles Survive
+
+attachment:fb1ece69-9f06-4a1e-83ca-4da50a50de89:media_(17).mp4
+
+Art style: Bulldozer Master Video 176
+
+attachment:1bf1e6a2-7367-4a0f-8649-ea9a6d44ce9a:b4bb556ec47a7a35002d995b1e260979a0f1b6a5_raw_(2).mp4
+
+Grinding and pushing materials into the crusher: Video 90237 0:02 - 0:09
+
+attachment:51272e6a-9329-4d26-98b0-5bbcd0adf52d:video90237_bulldozermaster_en_59s_1080x1920_ruelle_211026.mp4
+
+Simulator camera view: Lumber Chopper Playable 003
+
+attachment:312b731d-8df3-41fa-97a7-5b072beb1f10:Screen_Recording_20250710_103702_Samsung_Internet.mp4
+
+Customer vehicles paying the player's vehicle: Video 132 0:08 - 0:10
+
+attachment:0c51d1ab-ad82-478d-b1d2-7b8f1d1503e5:video132_bulldozermasters_en_51s_1080x1920_jaeny_260724.mp4
+
+Selected art assets: Creative Pyramid → Video 304
+
+attachment:579cd158-0f04-4f38-8587-094f529c48f9:video304_bulldozermasters_en_59s_1080x1920_jaeny_261001.mp4
+
+Video Flow
+
+Concept: Two-Level Crusher Factory
+
+VideoConceptScenario
+
+0012F Scrap Yard  1. The player starts inside the vehicle → drives to the scrap yard and vacuums up trash.  2. Drive back to the Parking node → use a cheat key to dump all trash into the crusher.  3. After dumping, the player exits the vehicle using a cheat key.  4. The camera follows the metal blocks from the crusher down a single rail into the processing machine on Level 1.  5. The player takes the elevator down to Level 1.  6. Stack finished products from the machine and deliver them to the customer vehicle in bay 1 → cash is automatically pulled toward the player. Bays 1–2 are open; bays 3–4 only display unlock nodes.  7. The player takes the elevator up to Level 2 → upgrades the vehicle → collects more trash.  8. Dump trash into the crusher → metal blocks pile up because the rail cannot transport them fast enough.  9. The player goes down to Level 1 → upgrades the rail twice: 1 rail → 2 rails → 4 rails.  10. Stack finished products and deliver them to vehicles in bays 1–2.  11. Finished products pile up excessively → the unlock nodes for bays 3–4 light up, but the player does not unlock them.  12. The stack of finished products topples over, ending the video.
+
+0022F OreSame as Video 001, but replace the scrap yard with a yard of rusty metal cubes and change the collection mechanic:  1. The player drives a vehicle with a grinding attachment to grind the metal cubes.  2. Use a cheat key to switch to the bulldozer attachment → push the ground metal into the crusher.  3. The processing machine produces gears instead of metal plates.Keep the selling, upgrades, movement between the two levels, and ending the same as Video 001. Cheat keys are required to switch attachments and exit the vehicle.
+
+0032F Scrap Yard → The player operates only on Level 2 and travels only by vehicle  1. The camera shows a long queue of customer vehicles on Level 1 with angry emojis.  2. The camera returns to Level 2 → the player starts inside the vehicle and drives to vacuum up trash. Initial capacity is limited to approximately one trash cluster; collected trash does not respawn.  3. Drive back to the Parking node → use a cheat key to dump all trash into the crusher. The player stays inside the vehicle.  4. The camera follows metal blocks down the two middle rails → processing machine → finished products are automatically delivered to the two middle customer vehicles.  5. Once fully loaded, one vehicle turns into cash, which then disappears; alternatively, the vehicle leaves and a cash-gain UI appears at its position. Provide a toggle to select the presentation.  6. The camera returns to Level 2 → the player upgrades the vehicle.  7. The player activates the rail upgrade node on Level 2 → the camera shows two new rail routes connecting through the processing machine to the remaining two vehicle bays.  8. The player vacuums up all remaining trash → dumps one giant trash block into the crusher.  9. The camera continuously follows crushing → processing → delivery; waiting vehicles receive their full loads and turn into cash one after another.  10. The cash disappears in sequence, with continuous cash-gain UI at the vehicle yard. The player stays inside the vehicle on Level 2 throughout.
+
+0042F Ore → The player operates only on Level 2 and travels only by vehicleSame as Video 003, but replace the scrap yard with a yard of rusty metal cubes. The player uses the grinding attachment to grind the cubes, then uses a cheat key to switch to the bulldozer attachment and pushes the metal into the crusher. The processing machine produces gears. Keep the automated selling flow, and keep the player inside the vehicle on Level 2 throughout.
+
+005Simulator: 2F Scrap YardSame as Video 001, but use the Simulator camera and steering-wheel UI during the trash-vacuuming driving sequence. After collection, return to the main camera view; keep all other flows unchanged.
+
+006Simulator: 2F OreSame as Video 002, but use the Simulator camera and steering-wheel UI during the metal-grinding and pushing sequence. After collection, return to the main camera view; keep all other flows unchanged.
+
+0072F Scrap Yard → Short map → The player operates only on Level 2 and travels only by vehicle  1. The player starts inside the vehicle → drives to the scrap yard and vacuums up trash. Collected trash clusters respawn.  2. Drive back to the Parking node → use a cheat key to dump all trash into the crusher. The player stays inside the vehicle.  3. Metal blocks from the crusher automatically move to the two vehicles in bays 1–2; bays 3–4 are locked. The short-map version skips processing.  4. Once fully loaded, customer vehicles transfer cash to the player's vehicle, then leave.  5. The player upgrades the vehicle.  6. The player unlocks bays 3–4 → two new customer vehicles enter and park.  7. The player drives the upgraded vehicle to collect more trash, then dumps it into the crusher.  8. Metal blocks automatically move to all four vehicle bays for sale.  9. The player upgrades the scrap yard into a junk car yard.
+
+0082F Ore → Short map → The player operates only on Level 2 and travels only by vehicleSame as Video 007, but replace the scrap yard with a yard of rusty metal cubes. The player uses the grinding attachment to grind the cubes, then uses a cheat key to switch to the bulldozer attachment and pushes the metal into the crusher. Keep the short map and direct-selling flow; at the end, upgrade the metal yard into a gold yard.
+
+Development and Art Details
+
+General Art Notes:
+
+Textures must look realistic and masculine, with a heavy-metal, industrial feel.
+
+The art style must not look low-poly.
+
+1. Map and Camera
+
+Camera: The main view should follow the Tiles Survive reference, clearly showing the height difference between the two levels and the direction of material movement. Videos 005–006 switch to the Simulator view during collection.
+
+Map Video 001 + 002 + 005 + 006:
+
+Map Video 003 + 004:
+
+Map Video 007 + 008:
+
+2. Reused Assets
+
+Player and vehicle types:
+
+Player → Reuse from existing Playables or Creative Pyramid
+
+Trash vacuum vehicle → Reuse from the Korean team's trash-vacuuming creative
+
+Bulldozer vehicle → Reuse from the VN team's Coin Pusher creative
+
+Crusher blades:
+
+Reuse from the Korean team's trash-vacuuming creative. Place the crusher at the edge of Level 2, suspended above the Level 1 production area. The intake should be level with Level 2 so vehicles can dump/push materials into it; connect the output to a rail leading down to Level 1, as in the Tiles Survive reference.
+
+Trash and metal cubes: 
+
+Reuse from the Korean team's trash-vacuuming creative.
+
+Reuse from the Vietnamese team's Coin Pusher creative → change the cube textures to rusty metal.
+
+Gold yard after the upgrade in Video 008:
+
+Reuse from the Vietnamese team's Coin Pusher creative.
+
+Customer vehicles: 
+
+Reuse from Playable 006; adjust the textures to look industrial and slightly rusty.
+
+Elevator:
+
+Use the elevator in Bulldozer Master Playable 002 as a reference.
+
+attachment:b10a121e-a05f-4b35-8f0a-5251a5a6723b:Screen_Recording_2026-10-30_at_16.52.56.mov
+
+Rail system: 
+
+Can be reused from Creative Pyramid.
+
+Unlock and upgrade nodes: 
+
+Same as Creative Pyramid.
+
+3. New Assets
+
+Processing machine:
+
+The press automatically processes metal blocks from the crusher. Scrap Yard variants produce flat metal plates; Videos 002, 004, and 006 produce gears. Videos 007–008 do not use a processing machine.
+
+Controller view simulation:
+
+A steering-wheel control UI using drag input similar to a joystick. The wheel rotates in the steering direction; use a realistic, industrial style. Applies to Videos 005–006.
+
+Junk car yard after the upgrade in Video 007:
+
+The junk car yard contains various types of old vehicles arranged in evenly spaced rows. Keep the realistic, industrial style; the image below is for reference only.
+
+4. Implementation Information
+
+Production rules:
+Scrap Yard (001, 003, 005): Vacuum up trash → dump into crusher → metal blocks → rail → processing machine → metal plates → customer vehicles.
+
+Ore (002, 004, 006): Grind rusty metal cubes → switch to bulldozer attachment → push into crusher → metal blocks → rail → processing machine → gears → customer vehicles.
+
+Short map (007–008): Keep the corresponding collection mechanic; metal blocks go directly from the crusher to customer vehicles without passing through a processing machine.
+
+The crusher and processing machine operate automatically when materials arrive. Crushing/pressing actions must match the timing of output generation.
+
+Economy and customer rules:
+Each vehicle has a required load and pays only when fully loaded. Sale prices, product quantities per vehicle, and upgrade costs must be adjustable in the Inspector.
+
+001, 002, 005, 006: The player carries finished products to vehicles; cash is automatically pulled toward the player after the full load is delivered.
+
+003–004: Finished products automatically move to vehicles via rails. Provide a toggle between vehicles turning into cash and vehicles leaving with cash-gain UI; use the vehicle-to-cash effect for the final payoff.
+
+007–008: Fully loaded vehicles transfer cash to the player's vehicle, then leave; new vehicles enter unlocked bays.
+
+Credit cash only once per order, regardless of the VFX presentation.
+
+Upgrade and unlock rules:
+Vehicle upgrades increase capacity and collection efficiency; the vehicle model/attachment must visibly change after the upgrade.
+
+001, 002, 005, 006: Start with one rail route; upgrade to two, then four routes. Customer bays 1–2 are open; bays 3–4 remain locked until the end of the video.
+
+003–004: Start with two middle routes that automatically deliver to the two middle vehicle bays. The upgrade opens two additional routes and the remaining two vehicle bays.
+
+007–008: Bays 1–2 start unlocked; the player unlocks bays 3–4. The resource-yard upgrade node appears at the final step: scrap yard → junk car yard (007), metal yard → gold yard (008).
+
+Nodes that the player activates while inside the vehicle must be placed on Level 2; their interaction zones must detect the vehicle.
+
+Collection and stacking rules:
+Vacuumed trash stacks on the vehicle; use a cheat key at the Parking node to dump it all into the crusher. Do not dump automatically before activation.
+
+Ore variants use a cheat key to switch between grinding and bulldozer attachments; metal is pushed into the crusher rather than vacuumed up like trash.
+
+003–004: Initial collection capacity is approximately one material cluster; collected materials do not respawn. After the upgrade, the vehicle can collect all remaining materials.
+
+007–008: Collected material clusters respawn.
+
+001, 002, 005, 006: The player can exit the vehicle using a cheat key, take the elevator between the two levels, and stack finished products in their arms for delivery.
+
+003, 004, 007, 008: The player stays inside the vehicle on Level 2 throughout.
+
+Vehicle capacity, material quantity per cluster, respawn time, and player stack capacity must be adjustable for each video.
+
+Overload and physics:
+001, 002, 005, 006 have two bottlenecks: metal blocks pile up at the rail before the upgrade; finished products accumulate at the output after the upgrade.
+
+Show rail overload through piled-up/slightly shaking materials and a warning; after the upgrade, clearly show the material flow clearing.
+
+At the end of the video, the finished-product stack grows taller and topples over; the unlock nodes for bays 3–4 light up, but the bays remain locked.
+
+The overload threshold must be adjustable. Materials must show clear collisions, impacts, and falling motion without obscuring the player or important nodes.
+
+Camera and recording controls:
+001, 002, 005, 006: The camera follows the player between levels while clearly showing the route from crusher → rail → processing machine.
+
+003–004: The camera alternates between the player on Level 2 and the production line/customer vehicles on Level 1; hold each shot long enough to clearly read crushing → processing → selling → receiving cash.
+
+005–006: Enable the Simulator view and steering-wheel UI only during collection; return to the main view afterward.
+
+Keep camera transitions short and smooth; temporarily lock controls during scripted camera sequences.
+
+Provide cheat keys to dump trash, switch attachments, enter/exit the vehicle, and trigger the camera; enable only the functions relevant to each video.
+
+5. SFX Integration
+
+Add a Sound Manager in Unity so creators can replace sounds, adjust volume/pitch, and toggle each group on/off. Use 3D sound for objects and 2D sound for UI.
+
+Vehicles: Engine idle/driving, trash vacuuming, grinding attachment operation, attachment switching, and trash dumping into the crusher.
+
+Materials: Trash collection/stacking, metal collisions, metal pushing, finished-product stacking/unstacking, and product stacks toppling over.
+
+Production line: Crusher operation, materials falling onto rails, rail transport, and machine pressing.
+
+Movement: Footsteps, entering/exiting the vehicle, and elevator operation.
+
+Selling: Product delivery, vehicles reaching a full load, customer vehicles leaving, vehicles turning into cash, and cash collection.
+
+Upgrades/UI: Cash deposited into nodes, unlocks, upgrade completion, and overload warnings.
+
+SFX must match the actions; use multiple variations for repeated sounds. Lower engine/machine loop volume so it does not overpower crushing, impact, and cash sounds.
+
+6. Cheat keys
+
+W: all items to the crusher
+
+A: change bulldozer/drill
+
+D: leave the vehicle

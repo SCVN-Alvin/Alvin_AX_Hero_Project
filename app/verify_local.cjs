@@ -1,0 +1,52 @@
+const fs=require('node:fs');
+const vm=require('node:vm');
+const assert=require('node:assert/strict');
+const context=vm.createContext({console,document:{addEventListener(){}},setTimeout,clearTimeout,fetch(){throw Error('Network must not be used in this check.');}});
+vm.runInContext(fs.readFileSync('dist/base_projects.js','utf8'),context);
+vm.runInContext(fs.readFileSync('dist/seed.js','utf8'),context);
+vm.runInContext(fs.readFileSync('dist/app.js','utf8').replace(/init\(\);\s*$/,''),context);
+vm.runInContext(fs.readFileSync('local_ai.js','utf8'),context);
+const run=s=>vm.runInContext(s,context);
+run(`state.sources=${fs.readFileSync('dist/sources.json','utf8')}`);
+const sample={title:'AI brief',text:'Setup the map. Setup the camera.',ai:true,model:'test-model',plan:{open_questions:['Confirm dimensions.']},items:[
+ {id:'g',parent_id:null,kind:'group',title:'Map and Camera',discipline:'Mixed',videos:[],criteria:[],description:'',dependencies:[],estimate_days:null,notes:'',evidence:[]},
+ {id:'a',parent_id:'g',kind:'task',title:'Assemble AI map',discipline:'Art',videos:['001'],criteria:['Two levels'],description:'Setup the map.',dependencies:[],estimate_days:null,notes:'',evidence:[{section:'Map',quote:'Setup the map.',verified:true}]},
+ {id:'d',parent_id:'g',kind:'task',title:'Setup AI camera',discipline:'Dev',videos:['001'],criteria:['Both levels visible'],description:'Setup the camera.',dependencies:['a'],estimate_days:null,notes:'',evidence:[]}
+]};
+sample.text='Setup the map. Setup the camera. Reuse the map from Video 123.';
+sample.plan.base_projects=[{id:'p1',name:'Video 123',aliases:[],references:[{requirement:'Map',category:'Map',use_type:'Reuse',section:'Map',quote:'Reuse the map from Video 123.',verified:true}]}];
+run(`const draft=${JSON.stringify(sample)};const initial=clone(state);`);
+assert.equal(run('applyAiSelection(draft,clone(draft.items))'),3);
+assert.equal(run('validateWorkspace(state)'),true);
+assert.equal(run(`state.tasks.at(-1).dependencies[0]`),run(`state.tasks.at(-2).id`));
+assert.equal(run(`state.tasks.at(-1).parent`),run(`state.tasks.at(-3).id`));
+assert.equal(run(`state.tasks.at(-1).estimate`),1);
+assert.match(run(`state.tasks.at(-1).notes`),/1-day placeholder/);
+assert.equal(run('computeSchedule().unresolved.length'),0);
+assert.equal(run('baseChoice().candidate.name'),'Video 123');
+assert.equal(run('baseChoice().candidate.count'),1);
+assert.equal(run('validateWorkspace(JSON.parse(JSON.stringify(state)))'),true);
+run('state=clone(initial)');
+assert.equal(run(`applyAiSelection(draft,clone(draft.items.filter(t=>t.id==='d')))`),1);
+assert.equal(run('state.tasks.at(-1).parent'),null);
+assert.equal(run('state.tasks.at(-1).dependencies.length'),0);
+assert.match(run('state.tasks.at(-1).notes'),/Excluded prerequisite/);
+run('state=clone(initial)');
+assert.throws(()=>run(`applyAiSelection(draft,clone(draft.items.filter(t=>t.id==='g')))`),/implementation task/);
+assert.equal(run('state.tasks.length'),49);
+run('const bad=clone(draft.items);bad[1].videos=["999"];');
+assert.throws(()=>run('applyAiSelection(draft,bad)'),/video tags/);
+assert.equal(run('state.tasks.length'),49);
+run('const cyclic=clone(draft.items);cyclic[1].dependencies=["d"];');
+assert.throws(()=>run('applyAiSelection(draft,cyclic)'),/cycle/);
+assert.equal(run('state.tasks.length'),49);
+assert.equal(run('state.sources.length'),8);
+run('const noRefs=clone(draft);noRefs.plan.base_projects=[];applyAiSelection(noRefs,clone(noRefs.items));');
+assert.equal(run('baseChoice().ranks.length'),0);
+assert.ok(run('baseScopes().some(s=>s.title==="AI brief")'));
+const html=fs.readFileSync('local-build/index.html','utf8');
+const scripts=[...html.matchAll(/<script>([\s\S]*?)<\/script>/gi)].map(m=>m[1]);
+assert.equal(scripts.length,3);
+scripts.forEach((s,i)=>new vm.Script(s,{filename:`local-inline-${i}.js`}));
+assert.ok(!html.includes('fonts.googleapis.com'));
+console.log('PASS: AI plan hierarchy, ID mapping, dependencies, evidence, placeholder estimates, partial selection, atomic rollback and self-contained HTML script compilation.');

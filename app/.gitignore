@@ -1,4 +1,11 @@
-data/
+.DS_Store
+node_modules/
+.sites-runtime/
+.env
+.env.*
+*.tar.gz
+
 __pycache__/
 *.pyc
-.DS_Store
+local-build/
+*.zip

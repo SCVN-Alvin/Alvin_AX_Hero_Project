@@ -6,7 +6,7 @@
 ._*
 
 # Custom folder icons
-Icon
+Icon
 
 # Volume root files
 .DocumentRevisions-V100
@@ -17,3 +17,4 @@ Icon
 .VolumeIcon.icns
 .com.apple.timemachine.donotpresent
 RawData
+archive/

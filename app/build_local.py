@@ -51,32 +51,44 @@ def main():
     (OUT / "START_LOCAL.command").chmod(0o755)
     (OUT / "README.txt").write_text("""BRIEFBOARD LOCAL + OPENAI
 
-Requirements: Python 3.10+; no Python packages, Node, npm or Codex installation.
+Requirements: Python 3.10+; no Python packages, Node or npm.
 The board, styles, source text, maps and JavaScript are embedded in index.html.
-Only AI generation needs internet access and an OpenAI API key.
+Only AI generation needs internet access, plus one of:
+  - the Codex CLI, signed in with your own ChatGPT account (codex login), or
+  - an OpenAI API key.
 
 START ON MAC / LINUX
-1. Open Terminal in this folder.
-2. Set the API key without displaying it or putting it in command history:
-   bash -c 'read -rsp "OpenAI API key: " OPENAI_API_KEY; echo; export OPENAI_API_KEY; exec python3 server.py --directory .'
-3. Open http://127.0.0.1:8786 in your browser.
-4. Click Import brief. Upload HTML/Markdown/text or paste slide text.
-5. Choose OpenAI mode and click Generate with AI. Review the task hierarchy,
+1. Open Terminal in this folder and run: python3 server.py --directory .
+   The server reports whether Codex is installed and signed in.
+   To use an API key instead, see ALTERNATIVE START.
+2. Open http://127.0.0.1:8786 in your browser.
+3. Click Import brief. Upload HTML/Markdown/text or paste slide text.
+4. Choose an import mode and click Generate with AI. Review the task hierarchy,
    disciplines, criteria, source evidence and questions before adding tasks.
    Base project ranks source-backed requirements; aliases are merged and
    repeated mentions do not add credit. Choose a base manually if needed.
-6. Ctrl+C in Terminal stops the server.
+5. Ctrl+C in Terminal stops the server.
 
-ALTERNATIVE START
-If OPENAI_API_KEY is already exported in your terminal:
-   python3 server.py --directory .
+CHATGPT (CODEX) MODE
+Briefboard checks that Codex is installed, supported and signed in, then runs it
+on this computer. It never asks for your ChatGPT password and never reads Codex's
+credential files. Usage counts against your own ChatGPT plan. Leave Model empty to
+use Codex's default; ChatGPT plans do not offer every API model. Codex runs in
+read-only mode from an empty temporary folder with tools turned off. That reduces
+risk but is not full isolation, so only import briefs you trust. Set CODEX_BINARY
+if Codex is installed somewhere unusual.
+
+ALTERNATIVE START (API KEY)
+Set the API key without displaying it or putting it in command history:
+   bash -c 'read -rsp "OpenAI API key: " OPENAI_API_KEY; echo; export OPENAI_API_KEY; exec python3 server.py --directory .'
 On macOS, START_LOCAL.command launches the board too. A double-clicked launcher
-may not inherit terminal environment variables. Use the terminal command for AI.
-Without an API key the board and local-rule extraction still work.
+may not inherit terminal environment variables, so use the terminal command for
+API keys. Codex mode works from either launcher.
+Without Codex or an API key the board and local-rule extraction still work.
 On Windows PowerShell, set OPENAI_API_KEY in the process environment using your
 preferred secure secret mechanism, then run: python server.py --directory .
 
-MODEL
+MODEL (API KEY MODE)
 Default: gpt-6-astra, following the official API quickstart at build time.
 The model ID is editable in the import dialog. Your API project must have access
 and the model must support Responses API Structured Outputs.
@@ -84,12 +96,12 @@ You can also export OPENAI_MODEL before starting the server.
 If port 8786 is in use: python3 server.py --directory . --port 8787
 
 HOW IT WORKS
-Browser HTML -> same-origin local Python server -> OpenAI Responses API.
-The API key stays in the server environment. It is never embedded in HTML,
-browser storage, workspace exports or server logs. The server listens only on
-127.0.0.1. AI generation submits the imported text and source name only when
-requested. It sets store=false and performs no automatic retries.
-API usage uses the configured API project; this bundle does not use Codex login.
+Browser HTML -> same-origin local Python server -> your Codex CLI or the OpenAI
+Responses API. The API key stays in the server environment and is never passed
+to Codex. It is never embedded in HTML, browser storage, workspace exports or
+server logs. The server listens only on 127.0.0.1. AI generation submits the
+imported text and source name only when requested, with no automatic retries.
+API-key usage bills the configured API project.
 The build removes Google Fonts requests and uses system-font fallbacks.
 Source HTML is converted to text. Linked images, videos and Google Slides
 are not retrieved or analyzed. This demo supports video tags 001 through 008.
@@ -104,12 +116,12 @@ Keep the port consistent so the browser uses the same saved workspace.
 STATIC HOSTING
 index.html is self-contained and can be copied to a static host. The board and
 local-rule imports work without this server, but AI generation requires the
-same-origin /api/config and /api/generate routes implemented in server.py.
+same-origin /api routes implemented in server.py.
 Do not place an API key inside HTML or JavaScript.
 
 VERIFICATION
 Python and JavaScript checks plus mocked API/HTTP integration tests are supplied
-in the source checkout. Live generation requires your own configured API key.
+in the source checkout. Live generation requires your own Codex sign-in or API key.
 """)
     archive = ROOT / "briefboard-local-openai.zip"
     with zipfile.ZipFile(archive, "w", zipfile.ZIP_DEFLATED) as z:

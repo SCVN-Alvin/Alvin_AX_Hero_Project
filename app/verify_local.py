@@ -142,6 +142,143 @@ class LogicTests(unittest.TestCase):
         self.assertFalse(app.validate_base_projects(projects, quote)[0]["references"][0]["verified"])
 
 
+FAKE_CODEX = """#!PYTHON
+import json, os, sys, time
+from pathlib import Path
+here = Path(__file__).parent
+cfg = json.loads((here / "cfg.json").read_text())
+args = sys.argv[1:]
+if args == ["--version"]:
+    print("codex-cli 9.9.9"); sys.exit(0)
+if args == ["login", "status"]:
+    print("Not logged in" if cfg.get("signed_out") else "Logged in using ChatGPT"); sys.exit(1 if cfg.get("signed_out") else 0)
+if args == ["exec", "--help"]:
+    print(cfg["help"]); sys.exit(0)
+if args == ["features", "list"]:
+    print("shell_tool  stable  true\\nsome_new_feature  beta  false"); sys.exit(0)
+(here / "call.json").write_text(json.dumps({"argv": args, "env": dict(os.environ), "stdin": sys.stdin.read(), "cwd": os.getcwd()}))
+if cfg.get("hang"):
+    time.sleep(60)
+if "stderr" in cfg:
+    sys.stderr.write(cfg["stderr"]); sys.exit(1)
+if "answer" in cfg:
+    Path(args[args.index("--output-last-message") + 1]).write_text(cfg["answer"])
+"""
+
+
+class CodexTests(unittest.TestCase):
+    def setUp(self):
+        self.folder = tempfile.TemporaryDirectory()
+        self.addCleanup(self.folder.cleanup)
+        self.dir = Path(self.folder.name)
+        self.binary = self.dir / "codex"
+        self.binary.write_text(FAKE_CODEX.replace("PYTHON", sys.executable))
+        self.binary.chmod(0o755)
+        patcher = mock.patch.dict(app.os.environ, {"CODEX_BINARY": str(self.binary), "OPENAI_API_KEY": "must-not-reach-codex"})
+        patcher.start()
+        self.addCleanup(patcher.stop)
+        self.configure(answer=json.dumps(fixture_plan()))
+
+    def configure(self, **cfg):
+        cfg.setdefault("help", " ".join(app.CODEX_REQUIRED_FLAGS))
+        (self.dir / "cfg.json").write_text(json.dumps(cfg))
+
+    def call(self):
+        return json.loads((self.dir / "call.json").read_text())
+
+    def request(self, model=""):
+        return app.validate_request({"title": "Test", "text": SOURCE, "provider": "codex", "model": model, "max_tasks": 40})
+
+    def test_ready_status_reports_chatgpt_sign_in(self):
+        status = app.codex_status()
+        self.assertTrue(status["installed"] and status["ready"])
+        self.assertEqual((status["auth_mode"], status["version"]), ("chatgpt", "codex-cli 9.9.9"))
+
+    def test_install_is_checked_first(self):
+        self.binary.unlink()
+        status = app.codex_status()
+        self.assertFalse(status["installed"] or status["ready"])
+        self.assertIn("not installed", status["message"])
+        with self.assertRaisesRegex(app.AppError, "not installed"):
+            app.run_codex(self.request())
+
+    def test_signed_out_and_unsupported_version_block_generation(self):
+        self.configure(signed_out=True)
+        status = app.codex_status()
+        self.assertTrue(status["installed"])
+        self.assertFalse(status["signed_in"])
+        self.assertIn("codex login", status["message"])
+        with self.assertRaisesRegex(app.AppError, "not signed in"):
+            app.run_codex(self.request())
+        self.assertFalse((self.dir / "call.json").exists())
+        self.configure(help="--json only")
+        status = app.codex_status()
+        self.assertFalse(status["ready"])
+        self.assertIn("--output-schema", status["missing_flags"])
+
+    def test_generation_is_restricted_and_validated(self):
+        result = app.generate_plan_codex(self.request())
+        self.assertEqual(len(result["plan"]["tasks"]), 3)
+        self.assertTrue(result["plan"]["tasks"][1]["evidence"][0]["verified"])
+        self.assertEqual(result["model"], "Codex default model")
+        call = self.call()
+        argv = call["argv"]
+        self.assertEqual(argv[argv.index("--sandbox") + 1], "read-only")
+        for flag in ("--ephemeral", "--ignore-user-config", "--ignore-rules", "mcp_servers={}", "shell_tool"):
+            self.assertIn(flag, argv)
+        self.assertNotIn("some_new_feature", argv)
+        self.assertNotIn("-m", argv)
+        self.assertNotIn(SOURCE, " ".join(argv))
+        self.assertIn(SOURCE, json.loads(call["stdin"])["brief_text"])
+        self.assertNotIn("OPENAI_API_KEY", call["env"])
+        self.assertFalse(Path(call["cwd"]).exists())
+
+    def test_requested_model_is_passed(self):
+        result = app.generate_plan_codex(self.request("gpt-test"))
+        argv = self.call()["argv"]
+        self.assertEqual(argv[argv.index("-m") + 1], "gpt-test")
+        self.assertEqual(result["model"], "gpt-test")
+
+    def test_option_like_model_rejected(self):
+        with self.assertRaises(app.AppError):
+            self.request("--dangerous")
+
+    def test_bad_output_is_rejected(self):
+        for answer, pattern in (("not json", "readable"), ("", "returned nothing"), (json.dumps({"tasks": "x"}), "invalid task plan")):
+            self.configure(answer=answer)
+            with self.assertRaisesRegex(app.AppError, pattern):
+                app.generate_plan_codex(self.request())
+
+    def test_failures_are_classified_without_leaking_output(self):
+        for stderr, pattern, status in (("Error: 429 usage limit reached /Users/secret", "allowance", 429),
+                                        ("401 Unauthorized /Users/secret", "not signed in", 503),
+                                        ("The model is not supported /Users/secret", "Clear the Model", 400),
+                                        ("something else /Users/secret", "stopped with an error", 502)):
+            self.configure(stderr=stderr)
+            with self.assertRaisesRegex(app.AppError, pattern) as caught:
+                app.run_codex(self.request())
+            self.assertEqual(caught.exception.status, status)
+            self.assertNotIn("/Users/secret", str(caught.exception))
+
+    def test_cancel_and_timeout_stop_the_process(self):
+        self.configure(hang=True)
+        cancel = threading.Event()
+        threading.Timer(0.5, cancel.set).start()
+        with self.assertRaisesRegex(app.AppError, "Cancelled") as caught:
+            app.run_codex(self.request(), cancel)
+        self.assertEqual(caught.exception.status, 409)
+        with self.assertRaises(app.AppError) as caught:
+            app.run_codex(self.request(), timeout=1)
+        self.assertEqual(caught.exception.status, 504)
+
+    def test_unknown_provider_rejected_and_openai_default_unchanged(self):
+        with self.assertRaisesRegex(app.AppError, "provider"):
+            app.validate_request({"text": SOURCE, "provider": "other"})
+        data = app.validate_request({"text": SOURCE})
+        self.assertEqual(data["provider"], "openai")
+        self.assertTrue(data["model"])
+
+
 class HTTPTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
@@ -198,6 +335,21 @@ class HTTPTests(unittest.TestCase):
         finally:
             self.server.api_key = ""
 
+    def test_codex_routes(self):
+        ready = {"installed": True, "ready": True, "message": "Ready"}
+        with mock.patch.object(app, "codex_status", return_value=ready):
+            status, body, _ = self.fetch("/api/codex")
+        self.assertEqual((status, json.loads(body)["ready"]), (200, True))
+        payload = {"title": "Test", "text": SOURCE, "max_tasks": 40, "provider": "codex"}
+        with mock.patch.object(app, "run_codex", return_value=json.dumps(fixture_plan())) as runner:
+            status, body, _ = self.fetch("/api/generate", payload)
+        self.assertEqual(status, 200)
+        self.assertEqual(json.loads(body)["model"], "Codex default model")
+        self.assertIs(runner.call_args.args[1], self.server.cancel)
+        self.assertEqual(self.fetch("/api/cancel", {})[0], 200)
+        self.assertEqual(self.fetch("/api/cancel", {}, {"X-Briefboard-Token": "wrong"})[0], 403)
+        self.server.cancel.clear()
+
     def test_cross_origin_and_missing_session_blocked(self):
         data = {"title": "Test", "text": SOURCE}
         self.assertEqual(self.fetch("/api/generate", data, {"Origin": "https://unrelated.example"})[0], 403)
@@ -210,7 +362,8 @@ class HTTPTests(unittest.TestCase):
 
 if __name__ == "__main__":
     http = "--http" in sys.argv
-    suites = [unittest.defaultTestLoader.loadTestsFromTestCase(LogicTests)]
+    suites = [unittest.defaultTestLoader.loadTestsFromTestCase(LogicTests),
+              unittest.defaultTestLoader.loadTestsFromTestCase(CodexTests)]
     if http:
         suites.append(unittest.defaultTestLoader.loadTestsFromTestCase(HTTPTests))
     result = unittest.TextTestRunner(verbosity=2).run(unittest.TestSuite(suites))

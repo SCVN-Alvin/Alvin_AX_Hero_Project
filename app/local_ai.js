@@ -1,6 +1,9 @@
 /* Local-only extension. The Python backend owns all OpenAI credentials. */
 let localConfig = null;
+let codexStatus = null;
+let codexRunning = false;
 let localGeneration = 0;
+const baseCloseModal = closeModal;
 const baseImportModal = importModal;
 const baseGenerateDraft = generateDraft;
 const baseAddDraft = addDraft;
@@ -15,22 +18,57 @@ async function getLocalConfig() {
   return data;
 }
 
+async function getCodexStatus() {
+  const response = await fetch('/api/codex', {cache:'no-store'});
+  if (!response.ok) throw Error('The local AI backend is unavailable.');
+  codexStatus = await response.json();
+  return codexStatus;
+}
+
+function aiProvider() {
+  const mode = document.getElementById('generation-mode')?.value;
+  return mode==='codex' ? 'codex' : mode==='ai' ? 'openai' : null;
+}
+
+function syncAiMode() {
+  const provider=aiProvider(), connection=document.getElementById('ai-connection'), error=document.getElementById('import-error'), model=document.getElementById('ai-model');
+  if (!connection) return;
+  model.placeholder = provider==='codex' ? 'Codex default' : '';
+  if (provider==='codex' && model.value===localConfig?.model) model.value='';
+  if (provider==='openai' && !model.value) model.value=localConfig?.model||'gpt-6-astra';
+  let label='Not needed', problem='';
+  if (provider==='codex') {
+    label=!codexStatus?'Checking…':codexStatus.ready?codexStatus.message:'Not ready';
+    problem=codexStatus&&!codexStatus.ready?codexStatus.message:'';
+  } else if (provider==='openai') {
+    label=!localConfig?'Checking…':localConfig.key_configured?'Ready':'API key missing';
+    problem=localConfig&&!localConfig.key_configured?'Set OPENAI_API_KEY and restart the server, or use another import mode.':'';
+  }
+  connection.textContent=label;
+  connection.classList.toggle('missing-key',Boolean(problem));
+  error.textContent=problem;
+}
+
+closeModal = function() {
+  if (codexRunning && localConfig) fetch('/api/cancel',{method:'POST',headers:{'X-Briefboard-Token':localConfig.session_token}}).catch(()=>{});
+  baseCloseModal();
+};
+
 importModal = function() {
   localGeneration++;
   baseImportModal();
   const fileZone = document.querySelector('.upload-zone');
   const controls = document.createElement('div');
   controls.className = 'ai-settings';
-  controls.innerHTML = `<div class="field-grid"><div class="field"><label class="field-label" for="generation-mode">Import mode</label><select id="generation-mode"><option value="ai">OpenAI</option><option value="local">Local rules</option></select></div><div class="field"><span class="field-label">Connection</span><p id="ai-connection" class="ai-connection">Checking…</p></div></div><details><summary>AI settings</summary><div class="field-grid"><div class="field"><label class="field-label" for="ai-model">Model</label><input id="ai-model" value="${esc(localConfig?.model||'gpt-6-astra')}" maxlength="100"></div><div class="field"><label class="field-label" for="ai-limit">Task limit</label><input id="ai-limit" type="number" min="10" max="100" step="1" value="80"></div></div></details><p class="import-note ai-disclosure">AI sends this brief to OpenAI. Review before adding.</p>`;
+  controls.innerHTML = `<div class="field-grid"><div class="field"><label class="field-label" for="generation-mode">Import mode</label><select id="generation-mode"><option value="codex">ChatGPT (Codex)</option><option value="ai">OpenAI API key</option><option value="local">Local rules</option></select></div><div class="field"><span class="field-label">Connection</span><p id="ai-connection" class="ai-connection">Checking…</p></div></div><details><summary>AI settings</summary><div class="field-grid"><div class="field"><label class="field-label" for="ai-model">Model</label><input id="ai-model" value="" placeholder="Codex default" maxlength="100"></div><div class="field"><label class="field-label" for="ai-limit">Task limit</label><input id="ai-limit" type="number" min="10" max="100" step="1" value="80"></div></div></details><p class="import-note ai-disclosure">AI sends this brief to OpenAI. Review before adding.</p>`;
   fileZone.before(controls);
   document.querySelector('.modal .import-note:not(.ai-disclosure)').textContent = 'HTML, Markdown, text, or pasted slide text. Linked files are not read.';
   document.getElementById('import-submit').innerHTML = `Generate with AI ${icon('arrow')}`;
-  getLocalConfig().then(config=>{
+  // Codex is checked first; the API key is only preselected when Codex cannot be used.
+  Promise.all([getLocalConfig(),getCodexStatus()]).then(([config,codex])=>{
     if (!document.getElementById('ai-connection')) return;
-    document.getElementById('ai-model').value = config.model;
-    document.getElementById('ai-connection').textContent = config.key_configured ? 'Ready' : 'API key missing';
-    document.getElementById('ai-connection').classList.toggle('missing-key', !config.key_configured);
-    if (!config.key_configured) document.getElementById('import-error').textContent = 'Set OPENAI_API_KEY and restart the server, or use Local rules.';
+    if (!codex.ready && config.key_configured && aiProvider()==='codex') document.getElementById('generation-mode').value='ai';
+    syncAiMode();
   }).catch(()=>{
     if (document.getElementById('ai-connection')) document.getElementById('ai-connection').textContent = 'Server unavailable';
   });
@@ -39,7 +77,7 @@ importModal = function() {
 aboutModal = function() {
   baseAboutModal();
   const list = document.querySelector('.about-list');
-  if (list) list.innerHTML = `<li>The board, source text and diagrams are bundled in this local HTML build.</li><li>AI task generation calls the OpenAI Responses API through your local Python server. Your key is read from OPENAI_API_KEY and never sent to this browser.</li><li>Only the imported text and source name are submitted when you click Generate with AI. Local-rule extraction makes no OpenAI request.</li><li>Review and edit AI hierarchy, disciplines, videos, scope and completion criteria before adding tasks.</li><li>Board data saves in this browser. Use workspace JSON export/restore to transfer work from the hosted demo.</li><li>Direct Google Slides access, linked image/video interpretation and team synchronization are not included.</li>`;
+  if (list) list.innerHTML = `<li>The board, source text and diagrams are bundled in this local HTML build.</li><li>AI task generation runs through your local Python server, using either your own signed-in Codex CLI or an API key read from OPENAI_API_KEY. Briefboard never asks for your password, and no credential is sent to this browser.</li><li>Only the imported text and source name are submitted when you click Generate with AI. Local-rule extraction makes no OpenAI request.</li><li>Review and edit AI hierarchy, disciplines, videos, scope and completion criteria before adding tasks.</li><li>Board data saves in this browser. Use workspace JSON export/restore to transfer work from the hosted demo.</li><li>Direct Google Slides access, linked image/video interpretation and team synchronization are not included.</li>`;
 };
 
 function aiDepth(item, records) {
@@ -89,7 +127,8 @@ function renderAiReview(plan) {
 }
 
 generateDraft = async function() {
-  if(document.getElementById('generation-mode')?.value!=='ai') {
+  const provider=aiProvider();
+  if(!provider) {
     baseGenerateDraft();return;
   }
   const raw=document.getElementById('import-text').value.trim();
@@ -103,16 +142,18 @@ generateDraft = async function() {
   if(!Number.isInteger(maxTasks)||maxTasks<10||maxTasks>100){error.textContent='Choose a task limit between 10 and 100.';return;}
   if(text.length>200000){error.textContent='This version accepts up to 200,000 source characters. Split the brief into sections.';return;}
   const button=document.getElementById('import-submit');
-  button.disabled=true;button.textContent='Planning with OpenAI…';error.textContent='';
-  document.getElementById('import-review').innerHTML='<div class="evidence">Generating… Closing discards the draft; the API request may continue.</div>';
+  button.disabled=true;button.textContent=provider==='codex'?'Planning with Codex…':'Planning with OpenAI…';error.textContent='';
+  document.getElementById('import-review').innerHTML=`<div class="evidence">${provider==='codex'?'Generating… This can take several minutes. Closing stops the request.':'Generating… Closing discards the draft; the API request may continue.'}</div>`;
   const requestId=++localGeneration;
   const controller=new AbortController();
-  const timer=setTimeout(()=>controller.abort(),255000);
+  // Slightly longer than the server's own limit, so its clearer timeout message arrives first.
+  const timer=setTimeout(()=>controller.abort(),provider==='codex'?615000:255000);
+  codexRunning=provider==='codex';
   document.querySelectorAll('.ai-settings input,.ai-settings select,#import-title,#import-text,#import-file').forEach(el=>el.disabled=true);
   try{
     const config=await getLocalConfig();
-    if(!config.key_configured) throw Error('Set OPENAI_API_KEY in the server terminal and restart the server. The key belongs in the server environment, not in this page.');
-    const response=await fetch('/api/generate',{method:'POST',headers:{'Content-Type':'application/json','X-Briefboard-Token':config.session_token},body:JSON.stringify({title,text,model,max_tasks:maxTasks}),signal:controller.signal});
+    if(provider==='openai'&&!config.key_configured) throw Error('Set OPENAI_API_KEY in the server terminal and restart the server. The key belongs in the server environment, not in this page.');
+    const response=await fetch('/api/generate',{method:'POST',headers:{'Content-Type':'application/json','X-Briefboard-Token':config.session_token},body:JSON.stringify({title,text,model,max_tasks:maxTasks,provider}),signal:controller.signal});
     const result=await response.json();
     if(!response.ok) throw Error(result.error||'AI generation failed. No tasks were added.');
     if(!document.getElementById('import-review')||activeModal?.type!=='import'||requestId!==localGeneration) return;
@@ -128,6 +169,7 @@ generateDraft = async function() {
     }
   }finally{
     clearTimeout(timer);
+    if(requestId===localGeneration)codexRunning=false;
     if(document.getElementById('generation-mode')&&requestId===localGeneration)document.querySelectorAll('.ai-settings input,.ai-settings select,#import-title,#import-text,#import-file').forEach(el=>el.disabled=false);
   }
 };
@@ -203,16 +245,17 @@ addDraft = function() {
 document.addEventListener('change',e=>{
   if(e.target.id==='generation-mode'){
     importDraft=null;document.getElementById('import-review').innerHTML='';document.getElementById('import-error').textContent='';
-    const ai=e.target.value==='ai';
+    const ai=e.target.value!=='local';
     document.getElementById('ai-model').disabled=!ai;document.getElementById('ai-limit').disabled=!ai;
     const button=document.getElementById('import-submit');button.dataset.action='generate';button.disabled=false;
     button.textContent=ai?'Generate with AI':'Generate local draft';
+    syncAiMode();
   }
 });
 
 document.addEventListener('input',e=>{
   if(['import-text','import-title'].includes(e.target.id)){
     const button=document.getElementById('import-submit');
-    if(button&&button.dataset.action==='generate'){button.disabled=false;button.textContent=document.getElementById('generation-mode')?.value==='ai'?'Generate with AI':'Generate local draft';}
+    if(button&&button.dataset.action==='generate'){button.disabled=false;button.textContent=aiProvider()?'Generate with AI':'Generate local draft';}
   }
 });

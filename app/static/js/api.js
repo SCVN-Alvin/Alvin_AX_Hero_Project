@@ -32,8 +32,10 @@ export function clearFailure() {
 // Expected prompts, not failures: the caller asks the user for a decision.
 const NOT_FAILURES = new Set(["unfinished_children"]);
 
-async function request(method, path, body) {
-  const write = method !== "GET";
+// `quiet` requests (previews, starting a background job) report their own errors where they are
+// used; they are not saves, so they never show the sticky "Not saved" state or block leaving the page.
+async function request(method, path, body, opts = {}) {
+  const write = method !== "GET" && !opts.quiet;
   if (write) {
     saveState.pending += 1;
     update();
@@ -77,7 +79,7 @@ async function request(method, path, body) {
 
 export const api = {
   get: (p) => request("GET", p),
-  post: (p, b = {}) => request("POST", p, b),
+  post: (p, b = {}, opts) => request("POST", p, b, opts),
   patch: (p, b) => request("PATCH", p, b),
   del: (p, b) => request("DELETE", p, b),
 };

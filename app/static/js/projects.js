@@ -67,7 +67,7 @@ export function noProjectState() {
     h("p", null, "Everything stays on this computer. No account, cloud service, or AI model is needed."),
     h("ol", null,
       h("li", null, "Create a project"),
-      h("li", null, "Import a brief (coming in Milestone 2) or add tasks by hand"),
+      h("li", null, "Import a brief to browse its text and media, or add tasks by hand"),
       h("li", null, "Review and approve work, then manage it on the board")),
     h("div", { class: "actions" }, h("button", { class: "btn primary", type: "button", onclick: openNewProject }, icon("plus"), "Create project")));
 }

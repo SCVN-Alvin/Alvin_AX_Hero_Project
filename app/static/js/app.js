@@ -5,9 +5,13 @@ import { closeDetails, hasUnsaved, showDetails } from "./details.js";
 import { h, replace } from "./dom.js";
 import { renderFilters, renderSearch } from "./filters.js";
 import { icon } from "./icons.js";
+import { renderImportBrief, resetImport } from "./importer.js";
 import { renderList } from "./list.js";
+import { renderReview, resetReview } from "./review.js";
+import { renderRules, resetRules } from "./rules.js";
 import { noProjectState, openNewProject, projectSwitcher } from "./projects.js";
 import { renderSettings } from "./settings.js";
+import { isDocumentRoute, renderSources, resetSources } from "./sources.js";
 import {
   activeFilterCount, clearFilters, go, lastProjectId, loadMeta, loadProject, loadProjects, loadView, parseHash, state,
 } from "./store.js";
@@ -42,6 +46,7 @@ async function boot() {
   // Pick up changes made elsewhere (another tab or window) when this one is focused again.
   window.addEventListener("focus", async () => {
     if (!state.projectId || document.querySelector("dialog[open]") || saveState.pending > 0) return;
+    if (["sources", "importbrief", "import", "rules"].includes(state.view)) return; // these views keep their own state and scroll
     await loadView();
     renderWorkspace();
     renderSidebar();
@@ -93,8 +98,13 @@ async function onRoute() {
     state.expanded = new Set();
   }
   const changedView = prev.projectId !== r.projectId || prev.view !== r.view;
+  if (changedView || state.docId !== r.docId) { resetSources(); resetReview(); }
+  if (changedView) resetRules();
+  if (changedView && prev.view === "importbrief") resetImport();
   state.view = r.view;
   state.taskId = r.taskId;
+  state.docId = r.docId;
+  state.params = r.params;
   setSidebar(false);
   if (changedView) await loadView();
   prev = { projectId: r.projectId, view: r.view };
@@ -136,12 +146,12 @@ function renderAll() {
 const NAV = [
   ["board", "Board", "board"],
   ["backlog", "Backlog", "list"],
-  ["import", "Import Review", "import", "M2"],
-  ["sources", "Sources", "doc", "M2"],
-  ["rules", "Rules", "rules", "M3"],
+  ["import", "Import Review", "import"],
+  ["sources", "Sources", "doc"],
+  ["rules", "Rules", "rules"],
   ["settings", "Settings", "settings"],
 ];
-const viewTitle = () => (NAV.find((n) => n[0] === state.view) || NAV[0])[1];
+const viewTitle = () => (state.view === "importbrief" ? "Import brief" : (NAV.find((n) => n[0] === state.view) || NAV[0])[1]);
 
 function renderSidebar() {
   const nav = h("ul", { class: "nav" });
@@ -150,7 +160,7 @@ function renderSidebar() {
       if (i === 2) nav.append(h("li", { class: "nav-sep", role: "presentation" }));
       nav.append(h("li", null, h("a", {
         href: `#/p/${state.projectId}/${view}`, "aria-current": state.view === view ? "page" : null,
-      }, icon(ic), label, soon ? h("span", { class: "soon", title: `Planned for Milestone ${soon.slice(1)}` }, soon === "M2" ? "Soon" : "Soon") : null)));
+      }, icon(ic), label, soon ? h("span", { class: "soon", title: `Planned for Milestone ${soon.slice(1)}` }, "Soon") : null)));
     });
   }
   replace($("sidebar"),
@@ -194,7 +204,10 @@ function renderHeader() {
   items.push(h("span", { class: "spacer" }), saveEl);
   if (p) {
     items.push(
-      h("button", { class: "btn", type: "button", disabled: true, title: "Brief import arrives in Milestone 2" }, icon("import"), "Import"),
+      h("button", { class: "btn", type: "button", onclick: () => {
+        resetImport(true); // the header button always starts a fresh selection (a running import is kept in view)
+        if (state.view === "importbrief") renderWorkspace(); else go(`#/p/${p.id}/importbrief`);
+      } }, icon("import"), "Import"),
       h("button", { class: "btn primary", type: "button", onclick: () => openCreateTask() }, icon("plus"), "Create task"));
   } else {
     items.push(h("button", { class: "btn primary", type: "button", onclick: openNewProject }, icon("plus"), "Create project"));
@@ -203,13 +216,10 @@ function renderHeader() {
   paintSaveState(saveState);
 }
 
-function placeholder(title, milestone, text) {
-  return h("div", { class: "note-card" }, h("h2", null, title), h("p", null, text), h("p", { class: "muted" }, `Planned for ${milestone}. Nothing here is hidden or stored yet.`));
-}
-
 function renderWorkspace() {
   const ws = $("workspace");
   ws.classList.toggle("board-ws", state.view === "board" && !!state.project);
+  ws.classList.toggle("fill-ws", (state.view === "sources" && isDocumentRoute() || state.view === "import") && !!state.project);
   if (!state.project) return replace(ws, noProjectState());
   const kids = [];
   if (state.loadError) {
@@ -230,13 +240,16 @@ function renderWorkspace() {
       } else if (state.list) kids.push(renderList(renderWorkspace));
       break;
     case "import":
-      kids.push(placeholder("Import Review", "Milestone 3", "Candidates extracted from an imported brief will be reviewed here before they reach the board. Approving a candidate is separate from a task's In Review production status."));
+      kids.push(renderReview());
+      break;
+    case "importbrief":
+      kids.push(renderImportBrief());
       break;
     case "sources":
-      kids.push(placeholder("Sources", "Milestone 2", "Imported briefs and their media will be browsable here, including historical sections kept separate from current requirements."));
+      kids.push(renderSources());
       break;
     case "rules":
-      kids.push(placeholder("Rules", "Milestone 3", "Editable classification rules and their match evidence will be managed here."));
+      kids.push(renderRules());
       break;
     case "settings":
       kids.push(renderSettings(async (opts = {}) => { if (opts.header) renderHeader(); renderSidebar(); renderWorkspace(); }, dataDir));

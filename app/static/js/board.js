@@ -234,7 +234,7 @@ export function emptyProjectState() {
     h("h2", null, "This project has no tasks yet"),
     h("p", null, "Import a creative brief to generate task candidates, or add tasks by hand."),
     h("div", { class: "actions" },
-      h("button", { class: "btn", type: "button", disabled: true, title: "Brief import arrives in Milestone 2" }, icon("import"), "Import brief (Milestone 2)"),
+      h("button", { class: "btn", type: "button", onclick: () => go(`#/p/${state.projectId}/importbrief`) }, icon("import"), "Import brief"),
       h("button", { class: "btn primary", type: "button", onclick: () => openCreateTask() }, icon("plus"), "Create task")));
 }
 

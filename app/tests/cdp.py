@@ -76,12 +76,12 @@ class WS:
 
 
 class Browser:
-    def __init__(self, width=1440, height=900, port=9333):
+    def __init__(self, width=1440, height=900, port=9333, extra_args=()):
         self.profile = tempfile.mkdtemp(prefix="organizer-chrome-")
         self.proc = subprocess.Popen(
             [CHROME, "--headless=new", f"--remote-debugging-port={port}", f"--user-data-dir={self.profile}",
              "--no-first-run", "--no-default-browser-check", "--disable-extensions", "--disable-sync",
-             "--disable-background-networking", f"--window-size={width},{height}", "about:blank"],
+             "--disable-background-networking", f"--window-size={width},{height}", *extra_args, "about:blank"],
             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         for _ in range(100):
             try:
@@ -96,6 +96,7 @@ class Browser:
         self._id = 0
         self.console_errors = []
         self.requests = []
+        self.failed = []
         self.events = []
         self.drag_data = None
         for domain in ("Page", "Runtime", "Network", "Log"):
@@ -132,6 +133,8 @@ class Browser:
             self.drag_data = p["data"]
         elif m == "Network.requestWillBeSent":
             self.requests.append(p["request"]["url"])
+        elif m == "Network.loadingFailed":
+            self.failed.append((p.get("errorText", ""), p.get("canceled", False)))
 
     def pump(self, seconds=0.3):
         end = time.time() + seconds
@@ -168,6 +171,14 @@ class Browser:
         self.js(f"document.querySelectorAll({json.dumps(selector)})[{index}].click()")
         self.pump(0.35)
 
+    def real_click(self, selector, index=0):
+        """A genuine mouse click (it carries user activation, which JS-dispatched clicks do not)."""
+        r = self.js(f"""(() => {{ const e = document.querySelectorAll({json.dumps(selector)})[{index}]; e.scrollIntoView({{block: 'center'}});
+            const b = e.getBoundingClientRect(); return [b.left + b.width / 2, b.top + b.height / 2]; }})()""")
+        for typ in ("mouseMoved", "mousePressed", "mouseReleased"):
+            self.call("Input.dispatchMouseEvent", type=typ, x=r[0], y=r[1], button="left", buttons=1 if typ == "mousePressed" else 0, clickCount=1)
+        self.pump(0.35)
+
     def type(self, selector, text, index=0):
         self.js(f"""(() => {{ const e = document.querySelectorAll({json.dumps(selector)})[{index}]; e.focus(); e.value = {json.dumps(text)};
             e.dispatchEvent(new Event('input', {{bubbles: true}})); }})()""")
@@ -178,6 +189,12 @@ class Browser:
             self.call("Input.dispatchKeyEvent", type=typ, key=key, code=code or key, modifiers=modifiers,
                       windowsVirtualKeyCode=vk or 0)
         self.pump(0.35)
+
+    def press_enter(self):
+        """Enter as a real keyboard would deliver it (activates a focused button)."""
+        self.call("Input.dispatchKeyEvent", type="keyDown", key="Enter", code="Enter", windowsVirtualKeyCode=13, text="\r", unmodifiedText="\r")
+        self.call("Input.dispatchKeyEvent", type="keyUp", key="Enter", code="Enter", windowsVirtualKeyCode=13)
+        self.pump(0.5)
 
     def native_drag(self, start, end, steps=8):
         """Drag with real mouse input: Chrome fires the genuine dragstart/dragover/drop sequence."""

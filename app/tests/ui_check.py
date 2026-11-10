@@ -32,11 +32,11 @@ def check(name, ok, info=""):
 
 
 class Srv:
-    def __init__(self, data_dir):
+    def __init__(self, data_dir, ai_fake=None):
         self.storage = Storage(data_dir)
         self.storage.init()
         migrate(self.storage.db_path)
-        self.server = make_server(self.storage, "127.0.0.1", 0)
+        self.server = make_server(self.storage, "127.0.0.1", 0, ai_fake=ai_fake)
         threading.Thread(target=self.server.serve_forever, daemon=True).start()
         self.port = self.server.server_address[1]
         self.url = f"http://localhost:{self.port}/"

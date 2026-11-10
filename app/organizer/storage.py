@@ -41,6 +41,48 @@ class Storage:
         shutil.move(src, dest)
         return dest
 
+    # -- managed source and media files (Milestone 2)
+    def sources_dir(self, project_id, document_id):
+        return os.path.join(self.project_dir(project_id), "sources", document_id)
+
+    def incoming_dir(self, project_id):
+        """Scratch space for files being copied; anything left here is garbage."""
+        return os.path.join(self.project_dir(project_id), "assets", ".incoming")
+
+    def asset_relative_path(self, content_hash, ext):
+        ext = "".join(ch for ch in ext.lower() if ch.isalnum())[:8]
+        return f"assets/{content_hash[:2]}/{content_hash}" + (f".{ext}" if ext else "")
+
+    def ensure_project_dirs(self, project_id):
+        base = self.project_dir(project_id)
+        os.makedirs(os.path.join(base, "sources"), exist_ok=True)
+        os.makedirs(os.path.join(base, "assets"), exist_ok=True)
+
+    def sweep_incoming(self):
+        """Remove partial copies left by an interrupted import (called at start-up)."""
+        removed = 0
+        if not os.path.isdir(self.projects_dir):
+            return removed
+        for pid in os.listdir(self.projects_dir):
+            d = self.incoming_dir(pid)
+            if os.path.isdir(d):
+                for name in os.listdir(d):
+                    try:
+                        os.remove(os.path.join(d, name))
+                        removed += 1
+                    except OSError:
+                        pass
+        return removed
+
+    def to_trash(self, path, label):
+        """Move a file or folder inside the data folder to trash/ instead of erasing it."""
+        if not os.path.exists(path):
+            return None
+        dest = os.path.join(self.trash_dir, f"{label}-{int(time.time())}-{os.path.basename(path)}")
+        os.makedirs(self.trash_dir, exist_ok=True)
+        shutil.move(path, dest)
+        return dest
+
     def resolve_in_project(self, project_id, relative_path):
         """Resolve a path under project storage; refuse anything that escapes it."""
         base = os.path.realpath(self.project_dir(project_id))

@@ -11,6 +11,10 @@ import { icon } from "./icons.js";
 import { go, labelOf, state, statusLabel } from "./store.js";
 import { disciplineChecks, eligibleParents, parentOptionLabel, parseTags, readDisciplines, selectEl } from "./taskform.js";
 import { confirmDialog, fieldLabel, openMenu, toast } from "./ui.js";
+import { AUTO_LOAD_LIMIT, assetUrl, openMediaViewer, typeLabel } from "./media.js";
+import { openRangeDialog, thumbFor } from "./clip.js";
+import { clarificationPanel, primaryCard, ROLE_OPTIONS, roleLabel } from "./taskview.js";
+import { fieldLabel as _fl, formDialog } from "./ui.js";
 import { openCreateTask } from "./taskform.js";
 
 let root = null;
@@ -118,7 +122,8 @@ function restoreFocus(snap) {
 
 function origin(field) {
   const o = task.field_origins[field];
-  return h("span", { class: `origin ${o === "manual" ? "manual" : ""}` }, o === "manual" ? "Manually set" : o ? `Set by ${o.replace("_", " ")}` : "Not set");
+  const text = { manual: "Manually set", rule: "Accepted rule suggestion", source_extraction: "From the source", template: "From a template" }[o];
+  return h("span", { class: `origin ${o === "manual" ? "manual" : ""}` }, text || (o ? `Set by ${o.replace("_", " ")}` : "Not set"));
 }
 
 function render() {
@@ -130,7 +135,7 @@ function render() {
   const head = h("div", { class: "details-head" },
     h("span", { class: "key" }, task.key),
     h("span", { class: `badge level ${task.level}` }, task.level),
-    h("span", { class: "badge origin", title: "How this task was created" }, task.provenance === "manual" ? "Manually added" : task.provenance.replace("_", " ")),
+    h("span", { class: "badge origin", title: "How this task was created" }, task.provenance === "manual" ? "Manually added" : task.provenance === "source_extraction" ? "From a source document" : task.provenance.replace("_", " ")),
     h("span", { class: "grow" }),
     h("button", {
       class: "icon-btn", type: "button", "aria-label": "More actions", "aria-haspopup": "menu", "aria-expanded": "false",
@@ -162,6 +167,7 @@ function render() {
   desc.value = val("description");
   onText("description", desc, { multiline: true });
   body.append(fieldLabel("Description", desc, h("span", { class: "origin" }, "plain text")));
+  body.append(taskFirstBlock());
 
   body.append(propsGrid(), priorityBox());
   body.append(criteriaSection(), subtasksSection(), dependenciesSection(), referencesSection(), historySection());
@@ -353,9 +359,144 @@ function dependenciesSection() {
     h("div", { class: "row" }, sel, h("button", { class: "btn small", type: "button", onclick: add }, "Add")), errBox);
 }
 
+let evidenceCache = { id: null, data: null };
+
+function evidenceFor(id) {
+  if (evidenceCache.id === id && evidenceCache.data) return Promise.resolve(evidenceCache.data);
+  return api.get(`/api/tasks/${id}/evidence`).then((ev) => { evidenceCache = { id, data: ev }; return ev; });
+}
+
+function setEvidence(ev) {
+  evidenceCache = { id: task.id, data: ev };
+  render();
+}
+
+/** What a person wants first: any open question, then the one main clip. Everything else is below, collapsed. */
+function taskFirstBlock() {
+  const box = h("div", { class: "tf-top", "data-task-first": "" });
+  const id = task.id;
+  evidenceFor(id).then((ev) => {
+    if (!task || task.id !== id) return;
+    fillTop(box, ev);
+  }).catch(() => {});
+  return box;
+}
+
+function fillTop(box, ev) {
+  const out = [];
+  const hasSource = ev.sources.length || ev.references.length || ev.clarifications.length;
+  if (!hasSource) return replace(box);
+  const docId = ev.document_id || (ev.sources[0] && ev.sources[0].document_id);
+  const q = clarificationPanel(ev.clarifications, {
+    canAdd: false, ownTitle: task.title,
+    onResolve: async (c) => {
+      let done = false;
+      await formDialog({ title: "Mark resolved", submitLabel: "Mark resolved",
+        body: () => [h("p", null, c.text), _fl("What was decided? (optional)", h("textarea", { name: "resolution", rows: "3", maxlength: "1000" }))],
+        onSubmit: async (dlg) => { const r = await api.patch(`/api/clarifications/${c.id}`, { state: "resolved", resolution: dlg.dialog.querySelector('[name="resolution"]').value }); done = !!r; } });
+      if (done) setEvidence(await api.get(`/api/tasks/${task.id}/evidence`));
+    },
+    onReopen: async (c) => { await api.patch(`/api/clarifications/${c.id}`, { state: "open" }); setEvidence(await api.get(`/api/tasks/${task.id}/evidence`)); },
+    onShow: (b) => go(`#/p/${state.projectId}/sources/${docId}?tab=content&seq=${b.sequence}`),
+  });
+  if (q && ev.clarifications.length) out.push(q);
+  if (ev.references.length || ev.primary || ev.reference_decision === "none") out.push(refBlock(ev));
+  replace(box, ...out);
+}
+
+function refBlock(ev) {
+  const base = `/api/tasks/${task.id}`;
+  const wrap = h("div", { class: "tf-ref", "data-ref-block": "" });
+  const doit = async (fn, message) => { try { setEvidence(await fn()); if (message) toast(message); } catch (e) { toast(e.message, { kind: "error" }); } };
+  const rename = async (ref) => {
+    let value = null;
+    await formDialog({ title: "Rename this clip", submitLabel: "Save",
+      body: () => [h("p", { class: "muted" }, "A friendly name for the task view. The original file name and file are not changed."), _fl("Name", h("input", { type: "text", name: "caption", maxlength: "200", value: ref.caption || ref.label }))],
+      onSubmit: async (dlg) => { value = dlg.dialog.querySelector('[name="caption"]').value; } });
+    if (value !== null) doit(() => api.patch(`${base}/references/${ref.reference_id}`, { caption: value }));
+  };
+  if (ev.primary) {
+    const ref = ev.primary;
+    wrap.append(primaryCard(ref, {
+      locked: false,
+      onRename: () => rename(ref),
+      onRange: () => openRangeDialog(ref, async (body) => { setEvidence(await api.patch(`${base}/references/${ref.reference_id}`, body)); }),
+      onChange: ev.references.length > 1 ? () => chooseMain(ev) : null,
+      onClear: () => doit(() => api.del(`${base}/primary-reference`), "Main clip cleared. The file stays attached."),
+      onPreview: () => openMediaViewer({ items: [{ asset: ref.asset, used_in: [] }], index: 0 }),
+    }));
+  } else if (ev.reference_decision === "none") {
+    wrap.append(h("h4", null, "Main reference"), h("p", { class: "muted" }, "No reference needed. This was decided during review."),
+      h("button", { class: "btn small", type: "button", onclick: () => doit(() => api.post(`${base}/reference-decision`, { decision: "undecided" })) }, "Choose a reference instead"));
+  } else {
+    wrap.append(h("h4", null, "Main reference"), h("p", { class: "muted" }, ev.references.length ? "No main clip is chosen. Pick one of the attached references, or say none is needed." : "No reference is attached."),
+      ev.references.length ? h("div", { class: "actions-row" }, h("button", { class: "btn small", type: "button", onclick: () => chooseMain(ev) }, "Choose main clip…"),
+        h("button", { class: "btn subtle small", type: "button", onclick: () => doit(() => api.post(`${base}/reference-decision`, { decision: "none" }), "Recorded: no reference needed") }, "No reference needed")) : null);
+  }
+  return wrap;
+}
+
+async function chooseMain(ev) {
+  const base = `/api/tasks/${task.id}`;
+  await formDialog({
+    title: "Choose the main reference", submitLabel: "Done", cancelLabel: "Close", wide: true,
+    body: (dlg) => [h("p", { class: "muted" }, "Pick the one clip that best shows what to build. The others stay as supporting references."),
+      h("div", { class: "tf-picker-list" }, ev.references.map((r) => h("div", { class: "tf-suggest" },
+        thumbFor(r), h("div", { class: "tf-suggest-main" }, h("b", null, r.label), h("div", { class: "muted small-note" }, [r.section, r.asset.name].filter(Boolean).join(" · "))),
+        h("div", { class: "actions-row" }, r.role === "primary_demo" ? h("span", { class: "badge status done" }, "Main clip")
+          : h("button", { class: "btn small primary", type: "button", onclick: async () => { try { setEvidence(await api.post(`${base}/primary-reference`, { reference_id: r.reference_id })); dlg.close(true); toast("Main clip chosen"); } catch (e) { toast(e.message, { kind: "error" }); } } }, "Use as main clip")))))],
+    onSubmit: async () => true,
+  });
+}
+
 function referencesSection() {
-  return section("Requirements and references", null, false,
-    h("div", { class: "placeholder-box" }, "Scenario requirements, source quotations, and media references appear here once a brief has been imported. Source import arrives in Milestone 2 and requirement links in Milestone 4. Nothing is attached to this task yet."));
+  const box = h("div", { class: "evidence" }, h("p", { class: "muted", role: "status" }, "Loading…"));
+  const id = task.id;
+  evidenceFor(id).then((ev) => { if (task && task.id === id) replace(box, renderEvidence(ev)); })
+    .catch((e) => replace(box, h("p", { class: "err", role: "alert" }, `Could not load the source details: ${e.message}`)));
+  return h("details", { class: "sec", "data-sec": "evidence" }, h("summary", null, "Source, requirements and supporting references"), box);
+}
+
+function renderEvidence(ev) {
+  if (!ev.sources.length && !ev.requirements.length && !ev.references.length) {
+    return h("div", { class: "placeholder-box" }, "Added by hand: there is no source document behind this task. Tasks approved from an imported brief show their original text, requirements, scenarios, and media here.");
+  }
+  const out = [];
+  const docId = ev.document_id || (ev.sources[0] && ev.sources[0].document_id);
+  const link = (seq, label) => h("a", { class: "link", href: `#/p/${state.projectId}/sources/${docId}?tab=content&seq=${seq}` }, label);
+  const own = ev.sources.filter((s) => ["label", "evidence", "scope", "context"].includes(s.role));
+  if (own.length) {
+    out.push(h("h4", null, "Original wording"));
+    out.push(h("ul", { class: "list-plain ev-sources" }, own.slice(0, 12).map((s) => h("li", null,
+      h("div", { class: "muted small-note" }, s.heading_path.join(" › "), " · ", s.role === "label" ? "label" : s.role === "scope" ? "scenario scope" : s.role === "context" ? "context" : "source text"),
+      h("blockquote", { class: "rv-quote" }, s.text || "(empty)"), link(s.sequence, "Open in the source browser")))));
+    if (own.length > 12) out.push(h("p", { class: "muted small-note" }, `${own.length - 12} more source blocks are linked.`));
+  }
+  if (ev.requirements.length) {
+    out.push(h("h4", null, `Requirements (${ev.requirements.length})`));
+    out.push(h("ul", { class: "list-plain ev-reqs" }, ev.requirements.map((r) => h("li", { class: r.kind },
+      r.kind === "exclusion" ? h("span", { class: "badge blocked" }, "Exclusion") : null, " ", h("span", { class: "ev-text" }, r.text),
+      h("div", { class: "ev-meta" }, ...r.values.map((v) => h("span", { class: "chip val" }, v)), ...r.scenarios.map((s) => h("span", { class: "chip" }, `Scenario ${s}`)),
+        r.blocks[0] ? link(r.blocks[0].sequence, "source") : null)))));
+  }
+  if (ev.scenarios.length) {
+    out.push(h("h4", null, `Scenarios (${ev.scenarios.length})`));
+    out.push(h("div", { class: "chips-left" }, ev.scenarios.map((s) => h("span", { class: "chip", title: s.title || "" }, s.identifier, s.state === "proposed" ? " (proposed)" : ""))));
+  }
+  const supporting = ev.references.filter((r) => r.role !== "primary_demo");
+  if (supporting.length) {
+    const base = `/api/tasks/${task.id}`;
+    out.push(h("h4", null, `Supporting references (${supporting.length})`));
+    const items = supporting.map((r) => ({ asset: r.asset, used_in: [] }));
+    out.push(h("ul", { class: "list-plain" }, supporting.map((r, i) => h("li", { class: "tf-ref-row", "data-ref": r.reference_id },
+      h("button", { type: "button", class: "rv-thumb", "aria-label": `Preview ${r.label}`, onclick: () => openMediaViewer({ items, index: i }) }, thumbFor(r)),
+      h("div", { class: "tf-suggest-main" }, h("b", null, r.label), h("div", { class: "muted small-note" }, [r.section, r.asset.name].filter(Boolean).join(" · "))),
+      h("div", { class: "actions-row" },
+        h("select", { "aria-label": `Role of ${r.label}`, onchange: async (e) => { try { setEvidence(await api.patch(`${base}/references/${r.reference_id}`, { role: e.target.value })); } catch (err) { toast(err.message, { kind: "error" }); } } },
+          ROLE_OPTIONS.map(([v, l]) => h("option", { value: v, selected: r.role === v }, l))),
+        h("button", { class: "btn small", type: "button", onclick: async () => { try { setEvidence(await api.post(`${base}/primary-reference`, { reference_id: r.reference_id })); toast("Main clip chosen"); } catch (err) { toast(err.message, { kind: "error" }); } } }, "Make main clip"))))));
+  }
+  return h("div", null, ...out);
 }
 
 const FIELD_NAMES = { parent_id: "parent", assignee_id: "assignee", is_blocked: "blocked", due_at: "due date", priority_override: "priority override", priority_override_reason: "override reason", dependency_added: "dependency added", dependency_removed: "dependency removed" };

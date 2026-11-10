@@ -3,7 +3,7 @@ import { api, qs } from "./api.js";
 import { safeStorage } from "./dom.js";
 
 export const FILTER_DIMS = ["discipline", "category", "impact", "urgency", "priority", "assignee"];
-export const VIEWS = ["board", "backlog", "import", "sources", "rules", "settings"];
+export const VIEWS = ["board", "backlog", "import", "importbrief", "sources", "rules", "settings"];
 
 export const state = {
   meta: null,
@@ -13,6 +13,8 @@ export const state = {
   people: [],
   view: "board",
   taskId: null,
+  docId: null, // open source document (Sources view)
+  params: new URLSearchParams(),
   q: "",
   filters: emptyFilters(),
   listStatus: [],
@@ -57,14 +59,17 @@ export function parseHash() {
   const params = new URLSearchParams(query);
   if (parts[0] === "p" && parts[1]) {
     const view = VIEWS.includes(parts[2]) ? parts[2] : "board";
-    return { projectId: parts[1], view, taskId: params.get("task") };
+    return { projectId: parts[1], view, taskId: params.get("task"), docId: view === "sources" || view === "import" ? parts[3] || null : null, params };
   }
-  return { projectId: null, view: "board", taskId: null };
+  return { projectId: null, view: "board", taskId: null, docId: null, params: new URLSearchParams() };
 }
 
-export function hashFor({ projectId = state.projectId, view = state.view, taskId = null } = {}) {
+export function hashFor({ projectId = state.projectId, view = state.view, taskId = null, docId = null, params = null } = {}) {
   if (!projectId) return "#/";
-  return `#/p/${projectId}/${view}${taskId ? `?task=${taskId}` : ""}`;
+  const q = new URLSearchParams(params || {});
+  if (taskId) q.set("task", taskId);
+  const qs = q.toString();
+  return `#/p/${projectId}/${view}${docId ? `/${docId}` : ""}${qs ? `?${qs}` : ""}`;
 }
 
 export function go(target, { replace = false } = {}) {

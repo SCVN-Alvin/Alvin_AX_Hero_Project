@@ -1,4 +1,5 @@
 // Project settings: details, local people, storage info, deletion.
+import { renderAiSettings } from "./ai.js";
 import { api } from "./api.js";
 import { clearFailure } from "./actions.js";
 import { h } from "./dom.js";
@@ -57,6 +58,7 @@ export function renderSettings(rerender, dataDir) {
     h("section", { class: "panel" }, h("h2", null, "People"),
       h("p", { class: "muted" }, "Local names you can assign tasks to. These are labels, not accounts."),
       peopleList, h("div", { class: "row" }, newPerson, h("button", { class: "btn", type: "button", onclick: addPerson }, "Add")), perr),
+    renderAiSettings(),
     h("section", { class: "panel" }, h("h2", null, "Storage"),
       h("dl", { class: "kv" },
         h("dt", null, "Data folder"), h("dd", null, h("code", null, dataDir || "unknown")),

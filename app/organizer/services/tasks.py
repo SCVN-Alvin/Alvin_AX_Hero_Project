@@ -317,7 +317,8 @@ def _guard_done(conn, task_id, new_status, old_status, confirm):
 
 # ---- create / update / delete -----------------------------------------------
 
-def create_task(conn, project_id, data, *, origin="manual", provenance="manual"):
+def create_task_in_tx(conn, project_id, data, *, origin="manual", provenance="manual"):
+    """Create a task inside the caller's transaction (used by approval, which creates several at once). Returns the task id."""
     project = get_project_row(conn, project_id)
     title = v.text(data, "title", max_len=300, required=True)
     # Collapse hard line breaks in titles; they are single-line values.
@@ -344,35 +345,47 @@ def create_task(conn, project_id, data, *, origin="manual", provenance="manual")
         raise ValidationError("An override reason needs an override priority", field="priority_override_reason")
 
     task_id, now = new_id(), utc_now()
+    _validate_hierarchy(conn, None, project_id, level, parent_id)
+    _check_assignee(conn, project_id, assignee_id)
+    number = conn.execute("SELECT next_ticket_number FROM project WHERE id = ?", (project_id,)).fetchone()[0]
+    conn.execute("UPDATE project SET next_ticket_number = ?, updated_at = ? WHERE id = ?", (number + 1, now, project_id))
+    suggested, reason = prio.suggest(impact, urgency)
+    rank = _next_rank_end(conn, project_id, status)
+    conn.execute(
+        "INSERT INTO task(id, project_id, ticket_number, parent_id, level, title, description, category, impact,"
+        " urgency, suggested_priority, priority_reason, priority_override, priority_override_reason, status,"
+        " is_blocked, blocked_reason, review_state, assignee_id, due_at, board_rank, provenance, created_at, updated_at)"
+        " VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,'approved',?,?,?,?,?,?)",
+        (task_id, project_id, number, parent_id, level, title, description, category, impact, urgency,
+         suggested, reason, override, override_reason, status, int(blocked), blocked_reason,
+         assignee_id, due, rank, provenance, now, now),
+    )
+    _sync_disciplines(conn, task_id, disciplines)
+    _sync_tags(conn, project_id, task_id, tags)
+    _record(conn, task_id, "created", None, f"{project['ticket_prefix']}-{number}", origin, now)
+    initial = {
+        "disciplines": (disciplines, []), "category": (category, "unassigned"), "impact": (impact, "unassessed"),
+        "urgency": (urgency, "unspecified"), "priority_override": (override, None), "status": (status, "backlog"),
+        "is_blocked": (blocked, False), "assignee_id": (assignee_id, None), "due_at": (due, None),
+        "tags": (tags, []), "parent_id": (parent_id, None),
+    }
+    for field, (value, default) in initial.items():
+        if value != default:
+            _record(conn, task_id, field, None, value, origin, now)
+    return task_id
+
+
+
+
+def create_task(conn, project_id, data, *, origin="manual", provenance="manual"):
     with tx(conn):
-        _validate_hierarchy(conn, None, project_id, level, parent_id)
-        _check_assignee(conn, project_id, assignee_id)
-        number = conn.execute("SELECT next_ticket_number FROM project WHERE id = ?", (project_id,)).fetchone()[0]
-        conn.execute("UPDATE project SET next_ticket_number = ?, updated_at = ? WHERE id = ?", (number + 1, now, project_id))
-        suggested, reason = prio.suggest(impact, urgency)
-        rank = _next_rank_end(conn, project_id, status)
-        conn.execute(
-            "INSERT INTO task(id, project_id, ticket_number, parent_id, level, title, description, category, impact,"
-            " urgency, suggested_priority, priority_reason, priority_override, priority_override_reason, status,"
-            " is_blocked, blocked_reason, review_state, assignee_id, due_at, board_rank, provenance, created_at, updated_at)"
-            " VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,'approved',?,?,?,?,?,?)",
-            (task_id, project_id, number, parent_id, level, title, description, category, impact, urgency,
-             suggested, reason, override, override_reason, status, int(blocked), blocked_reason,
-             assignee_id, due, rank, provenance, now, now),
-        )
-        _sync_disciplines(conn, task_id, disciplines)
-        _sync_tags(conn, project_id, task_id, tags)
-        _record(conn, task_id, "created", None, f"{project['ticket_prefix']}-{number}", origin, now)
-        initial = {
-            "disciplines": (disciplines, []), "category": (category, "unassigned"), "impact": (impact, "unassessed"),
-            "urgency": (urgency, "unspecified"), "priority_override": (override, None), "status": (status, "backlog"),
-            "is_blocked": (blocked, False), "assignee_id": (assignee_id, None), "due_at": (due, None),
-            "tags": (tags, []), "parent_id": (parent_id, None),
-        }
-        for field, (value, default) in initial.items():
-            if value != default:
-                _record(conn, task_id, field, None, value, origin, now)
+        task_id = create_task_in_tx(conn, project_id, data, origin=origin, provenance=provenance)
     return get_task(conn, task_id)
+
+
+def set_field_origin(conn, task_id, field, origin):
+    """Relabel who set a field in the task's history (for example a rule suggestion a person accepted)."""
+    conn.execute("UPDATE task_field_change SET origin = ? WHERE task_id = ? AND field = ? AND origin <> ?", (origin, task_id, field, origin))
 
 
 def update_task(conn, task_id, data, *, origin="manual"):
@@ -483,6 +496,13 @@ def delete_task(conn, task_id):
             "Move or delete them first.",
             code="has_children", details={"children": [dict(k) for k in kids]})
     with tx(conn):
+        # Evidence that belonged to this task goes with it. Its candidates return to review as dismissed
+        # (so regenerating does not recreate them unasked, and they can be restored and approved again).
+        reqs = [r["requirement_id"] for r in conn.execute("SELECT requirement_id FROM task_requirement WHERE task_id = ?", (task_id,))]
+        for rid in reqs:
+            conn.execute("UPDATE candidate SET state = 'dismissed', requirement_id = NULL WHERE requirement_id = ?", (rid,))
+            conn.execute("DELETE FROM requirement WHERE id = ?", (rid,))
+        conn.execute("UPDATE candidate SET state = 'dismissed', task_id = NULL WHERE task_id = ?", (task_id,))
         conn.execute("DELETE FROM task WHERE id = ?", (task_id,))
         conn.execute("DELETE FROM tag WHERE project_id = ? AND id NOT IN (SELECT tag_id FROM task_tag)", (row["project_id"],))
     # The ticket number is deliberately not returned to the project counter.

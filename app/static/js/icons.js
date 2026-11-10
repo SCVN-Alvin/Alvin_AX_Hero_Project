@@ -21,6 +21,16 @@ const PATHS = {
   trash: "M3 4.5h10M6 4.5V3h4v1.5M4.5 4.5l.5 8.5h6l.5-8.5",
   link: "M7 9a3 3 0 0 0 4 0l2-2a3 3 0 0 0-4-4l-1 1M9 7a3 3 0 0 0-4 0l-2 2a3 3 0 0 0 4 4l1-1",
   edit: "M3 13l1-3 7-7 2 2-7 7zM10 4l2 2",
+  folder: "M2 4.5h4l1.5 1.5H14v7H2z",
+  image: "M2.5 3h11v10h-11zM2.5 11l3.5-3.5 3 3 2-2 2.5 2.5M10.5 6.5h.01",
+  play: "M5.5 3.5l7 4.5-7 4.5z",
+  external: "M9 2.5h4.5V7M13.5 2.5L7 9M6 4H3v9h9v-3",
+  history: "M2.5 8a5.5 5.5 0 1 0 1.8-4M2.5 2.5v3h3M8 5v3.2l2 1.3",
+  arrowLeft: "M13 8H3M7 4L3 8l4 4",
+  arrowRight: "M3 8h10M9 4l4 4-4 4",
+  file: "M4 2h5l3 3v9H4zM9 2v3h3",
+  download: "M8 2v8M5 7l3 3 3-3M3 13h10",
+  eye: "M1.5 8S4 3.5 8 3.5 14.5 8 14.5 8 12 12.5 8 12.5 1.5 8 1.5 8zM8 10a2 2 0 1 0 0-4 2 2 0 0 0 0 4z",
 };
 
 export function icon(name, label) {

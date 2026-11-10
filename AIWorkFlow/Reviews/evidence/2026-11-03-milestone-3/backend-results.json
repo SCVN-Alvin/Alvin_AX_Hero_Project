@@ -1,0 +1,81 @@
+{
+  "review_date": "2026-11-03",
+  "suite": {
+    "command": "python3 -m unittest discover -s . -p 'test_*.py'",
+    "working_directory": "app/tests",
+    "tests": 162,
+    "result": "passed",
+    "seconds": 92.068
+  },
+  "sample_candidates": {
+    "all": 98,
+    "tasks_including_subtasks": 15,
+    "top_level_tasks": 13,
+    "requirements": 63,
+    "exclusions": 1,
+    "notes": 5,
+    "asset_labels": 14
+  },
+  "log_hammering_draft": {
+    "description": "",
+    "requirement_children": 8,
+    "family_source_associations": 19,
+    "suggested_media": 7
+  },
+  "additional_probes": {
+    "requirement_before_parent": {
+      "line": "The player moves to the designated fence position and starts building the wooden fence.",
+      "line_approval_tasks": 0,
+      "requirement_owner_count_after_parent": 0,
+      "line_in_approved_parent_evidence": false,
+      "candidate_state": "approved"
+    },
+    "parent_demotion_with_children": {
+      "change_accepted": true,
+      "nested_task_levels": [
+        [
+          "Shave clean wood",
+          "subtask"
+        ],
+        [
+          "Shave bad wood",
+          "subtask"
+        ]
+      ],
+      "approval_error": "A subtask cannot be placed under a subtask. Allowed: epic > task > subtask.",
+      "board_task_count_after_error": 0
+    },
+    "separate_reparent_controls": {
+      "level_only": "A subtask needs a parent task",
+      "parent_only": "A parent must be above its child: epic, then task, then subtask",
+      "combined": "accepted"
+    }
+  },
+  "normal_flows": {
+    "normal_log_hammering_flow": {
+      "created_tickets": [
+        {
+          "id": "8cb43993df1c4494aaf75a0b8142f575",
+          "key": "ADV-1",
+          "title": "Implement log hammering intro"
+        }
+      ],
+      "requirements": 8,
+      "attached_media": 1,
+      "original_label": "Log hammering (~5 seconds)",
+      "regeneration_new_candidates": 0
+    },
+    "normal_wood_shaving_flow": {
+      "created_tickets": [
+        "ADV-2 Implement wood shaving system",
+        "ADV-3 Shave clean wood",
+        "ADV-4 Shave bad wood"
+      ],
+      "resource_values_preserved": true
+    },
+    "reopened_storage": "saved evidence and attachment count preserved"
+  },
+  "interactive_ui_walkthrough": "Incomplete; simultaneous browser activity interrupted native UI actions. Implementer screenshots reviewed separately.",
+  "user_live_project_edited": false,
+  "application_code_changed_by_advisor": false
+}

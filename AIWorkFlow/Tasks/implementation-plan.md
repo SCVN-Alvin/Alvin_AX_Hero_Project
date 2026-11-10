@@ -1,6 +1,6 @@
 # Implementation Delivery Plan
 
-These tasks build the organizer itself. IDs use the `IMP` prefix so they cannot be confused with creative tickets imported into the finished application. Status is tracked per milestone below. Milestone 1 is delivered for review (see the [Milestone 1 handoff](milestone-1-handoff.md)); everything else is planned and unstarted.
+These tasks build the organizer itself. IDs use the `IMP` prefix for the core application and `AI` for the optional AI pilot, so they cannot be confused with creative tickets imported into the finished application. Milestone 1 is delivered; the Milestone 2 media-folder regression now passes. Milestone 3 requires approval, hierarchy, and presentation corrections. The user approved adding AI integration to the plan on 2026-11-03. The AI pilot and Milestones 4 and 5 are unstarted.
 
 Each milestone should produce a runnable local increment, verification results, and known limitations. The advisor reviews behavior against the linked requirements before suggesting the next scope change.
 
@@ -19,6 +19,8 @@ Review gate: the board works with manually created data stored in SQLite. An in-
 
 ## Milestone 2 Source import
 
+**Status: conditionally accepted on 2026-11-01; follow-up regression verified on 2026-11-03.** IMP-005 to IMP-007 are implemented in `../../app/`. The supplied sample works in the source and media views. M2 REV 001 from the [earlier review](../Reviews/2026-11-01-milestone-2-review.md) is fixed and its regression checks pass in the new 162-test run; the previously intermittent concurrency test also passes in that run. The [Milestone 2 handoff](milestone-2-handoff.md) retains launch instructions and known limits. See the [Milestone 3 review](../Reviews/2026-11-03-milestone-3-review.md) for current verification scope.
+
 | ID | Task | Dependencies | Completion evidence |
 | --- | --- | --- | --- |
 | IMP-005 | Implement managed source and asset import with path validation and hashing | IMP-002 | Import the sample, resolve its 61 referenced local asset paths, and report a deliberately missing file |
@@ -29,6 +31,8 @@ Review gate: the source browser shows actual imported content, preserves histori
 
 ## Milestone 3 Candidate generation and review
 
+**Status: reviewed on 2026-11-03; corrections and the task-first view delivered 2026-11-04 for re-review (see the [revision handoff](milestone-3-revision-handoff.md)); not yet accepted.** The [advisor review](../Reviews/2026-11-03-milestone-3-review.md) confirms 162 passing existing tests and successful normal flows, but reproduces M3 REV 001 through 003 involving requirement ownership and hierarchy editing. Fix those and implement the [task presentation refinement](../Design/task-first-review-flow.md) before broader Milestone 4 expansion. IMP-008 to IMP-011 and M2 REV 001 are delivered; the [handoff](milestone-3-handoff.md) retains implementer instructions and reported results. Optional AI drafting is proposed separately and is not required for acceptance.
+
 | ID | Task | Dependencies | Completion evidence |
 | --- | --- | --- | --- |
 | IMP-008 | Generate section-based task and requirement candidates | IMP-006 | Wood shaving candidates retain source text, scenario restrictions, and resource values |
@@ -37,6 +41,21 @@ Review gate: the source browser shows actual imported content, preserves histori
 | IMP-011 | Implement split review, bulk classification, approval, and dismissal | IMP-007, IMP-009, IMP-010 | Review a source section, edit its candidates, and approve selected tasks onto the board |
 
 Review gate: approval is a deliberate action and every generated ticket can be traced to its source. Negative instructions are not presented as confirmed positive tasks.
+
+## Optional AI pilot after the Milestone 3 corrections
+
+**Status: implemented 2026-11-04 and delivered for advisor review; see the [revision handoff](milestone-3-revision-handoff.md).** AI-001 to AI-006 are complete as a trusted personal pilot with the Codex CLI. Approved for planning on 2026-11-03. Follow the [AI integration brief](../Architecture/ai-integration.md) and [product requirements](../Product/optional-ai-assistance.md). This is a separate opt-in capability, not a new dependency for offline task management. Resolve M3 REV 001 through 003 and provide the concise description-plus-primary-clip view before accepting AI-generated candidates.
+
+| ID | Task | Dependencies | Completion evidence |
+| --- | --- | --- | --- |
+| AI-001 | Build filtered AI request selection and preview | M3 corrections and task presentation refinement | Show exact selected source text, scenario context, and reference manifest; exclude unrelated sections |
+| AI-002 | Add Codex CLI connection checks and adapter settings | AI-001 | Detect executable/version and ChatGPT sign-in without reading or displaying credential contents |
+| AI-003 | Implement background CLI draft jobs and structured response capture | AI-002 | Use argument-array subprocess execution, restricted runtime, timeout/cancellation, and visible failures |
+| AI-004 | Validate AI output and import selected drafts with provenance | AI-003 | Reject invalid/unknown IDs; preserve source links, manual edits, and idempotency; create no tickets before approval |
+| AI-005 | Integrate concise AI draft preview and primary-reference selection | AI-004 | Review a short description, optional subtasks and classifications, then explicitly choose the main clip |
+| AI-006 | Verify optional AI behavior and fallback | AI-005 | Fake-adapter failure tests plus a deliberate synthetic live request, sample draft review, and full non-AI operation offline |
+
+Review gate: AI output becomes editable needs-review candidates, not automatically approved tasks. The person can compare evidence, reject the response, recover the previous description, and continue without AI. A conventional OpenAI API adapter and actual image-content requests are follow-up scope, using the same contract.
 
 ## Milestone 4 Relationships and revisions
 

@@ -71,7 +71,9 @@ Attach the relevant section 3.4 references and section 3.5 resource values. A wo
 
 ## Deferred scope
 
-AI processing, cloud synchronization, real-time collaboration, Jira integration, automatic video understanding, automated semantic contradiction resolution, and a graphical dependency canvas are outside the first release. Store the graph now and expose its relationships in task details.
+Cloud synchronization, real-time collaboration, Jira integration, automatic video understanding, automated semantic contradiction resolution, and a graphical dependency canvas remain deferred. Store the graph now and expose its relationships in task details.
+
+On November 3, 2026, the user approved adding an optional AI drafting stage after local source filtering. The [AI integration brief](../Architecture/ai-integration.md) and AI-001 through AI-006 in the [implementation plan](../Tasks/implementation-plan.md) define that additional pilot. It does not replace the deterministic workflow or require an AI connection for normal offline use. Resolve the Milestone 3 correctness and presentation findings before accepting AI-generated candidates.
 
 ## Delivery and acceptance
 

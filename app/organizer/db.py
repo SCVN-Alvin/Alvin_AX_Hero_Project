@@ -9,6 +9,7 @@ from datetime import datetime, timezone
 
 MIGRATIONS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "migrations")
 _MIGRATION_RE = re.compile(r"^(\d{4})_([a-z0-9_]+)\.sql$")
+_REBUILD_MARK = re.compile(r"^--\s*migrate:\s*foreign_keys=off\s*$", re.MULTILINE)
 
 
 class MigrationError(RuntimeError):
@@ -119,11 +120,21 @@ def migrate(db_path, migrations_dir=MIGRATIONS_DIR):
         done = []
         for version, name, path in pending:
             with open(path, encoding="utf-8") as fh:
-                statements = _split_statements(fh.read())
+                script = fh.read()
+            statements = _split_statements(script)
+            # A migration that rebuilds a table (SQLite cannot alter a CHECK) must run with foreign keys off,
+            # as SQLite documents; the pragma only works outside a transaction. Integrity is verified before commit.
+            rebuild = bool(_REBUILD_MARK.search(script))
             try:
+                if rebuild:
+                    conn.execute("PRAGMA foreign_keys = OFF")
                 with tx(conn):
                     for stmt in statements:
                         conn.execute(stmt)
+                    if rebuild:
+                        bad = conn.execute("PRAGMA foreign_key_check").fetchall()
+                        if bad:
+                            raise MigrationError(f"foreign key check failed after the rebuild ({len(bad)} problems)")
                     conn.execute(
                         "INSERT INTO schema_migration(version, name, applied_at) VALUES (?, ?, ?)",
                         (version, name, utc_now()),
@@ -133,6 +144,9 @@ def migrate(db_path, migrations_dir=MIGRATIONS_DIR):
                 raise MigrationError(
                     f"Migration {version:04d}_{name} failed and was rolled back: {exc}.{where}"
                 ) from exc
+            finally:
+                if rebuild:
+                    conn.execute("PRAGMA foreign_keys = ON")
             done.append(version)
         return {"applied": done, "backup": backup, "version": done[-1]}
     finally:

@@ -123,6 +123,8 @@ class LogicTests(unittest.TestCase):
         self.assertTrue(html.split('<style>', 1)[1].lstrip().startswith(':root{'))
         self.assertIn("EMBEDDED_SOURCES", html)
         self.assertIn("data:image/png;base64,", html)
+        self.assertIn("data:font/woff2;base64,", html)
+        self.assertNotIn("url(assets/", html)
 
     def test_project_reference_evidence_and_deduplication(self):
         refs = [{"requirement": "Camera", "category": "Camera", "use_type": "Reference",

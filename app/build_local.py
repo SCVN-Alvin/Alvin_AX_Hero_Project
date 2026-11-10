@@ -25,6 +25,9 @@ def main():
     # Font URLs contain semicolons, so remove the entire import line.
     css = re.sub(r"(?m)^@import[^\n]*\n?", "", (DIST / "styles.css").read_text())
     css += "\n" + (DIST / "base_projects.css").read_text() + "\n" + (ROOT / "local_ai.css").read_text()
+    # The local server's content policy allows data: fonts only, which also keeps index.html self-contained.
+    font = data_url(DIST / "assets" / "PretendardVariable.woff2", "font/woff2")
+    css = css.replace("url(assets/PretendardVariable.woff2)", "url(" + font + ")")
     sources = (DIST / "sources.json").read_text()
     # JSON is placed inside a script tag; escape '<' to prevent closing the tag.
     sources_js = json.dumps(json.loads(sources), ensure_ascii=False).replace("<", "\\u003c")
@@ -102,7 +105,7 @@ to Codex. It is never embedded in HTML, browser storage, workspace exports or
 server logs. The server listens only on 127.0.0.1. AI generation submits the
 imported text and source name only when requested, with no automatic retries.
 API-key usage bills the configured API project.
-The build removes Google Fonts requests and uses system-font fallbacks.
+The Pretendard font is embedded in index.html, so no font requests are made.
 Source HTML is converted to text. Linked images, videos and Google Slides
 are not retrieved or analyzed. This demo supports video tags 001 through 008.
 

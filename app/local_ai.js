@@ -153,7 +153,7 @@ generateDraft = async function() {
   try{
     const config=await getLocalConfig();
     if(provider==='openai'&&!config.key_configured) throw Error('Set OPENAI_API_KEY in the server terminal and restart the server. The key belongs in the server environment, not in this page.');
-    const response=await fetch('/api/generate',{method:'POST',headers:{'Content-Type':'application/json','X-Briefboard-Token':config.session_token},body:JSON.stringify({title,text,model,max_tasks:maxTasks,provider}),signal:controller.signal});
+    const response=await fetch('/api/generate',{method:'POST',headers:{'Content-Type':'application/json','X-Briefboard-Token':config.session_token},body:JSON.stringify({title,text,model,max_tasks:maxTasks,provider,language:currentLanguage}),signal:controller.signal});
     const result=await response.json();
     if(!response.ok) throw Error(result.error||'AI generation failed. No tasks were added.');
     if(!document.getElementById('import-review')||activeModal?.type!=='import'||requestId!==localGeneration) return;

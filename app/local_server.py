@@ -128,9 +128,26 @@ def clean_string(value, field, limit):
     return value.strip()
 
 
+LANGUAGES = {"en": "English", "ko": "Korean", "vi": "Vietnamese"}
+ENGLISH_OUTPUT_RULE = "Return a complete structured plan in English."
+
+
+def plan_instructions(data):
+    language = LANGUAGES[data["language"]]
+    rule = (f"Return a complete structured plan in {language}. Write project_title, summary, open_questions, "
+            f"titles, descriptions, criteria, notes and requirement labels in {language}. Keep evidence quotes, "
+            "section names, reference quotes and project names exactly as written in the source, in its "
+            "original language. Keep IDs and enum values unchanged.")
+    return (INSTRUCTIONS.replace(ENGLISH_OUTPUT_RULE, rule)
+            + f"\nUse at most {data['max_tasks']} records including groups.")
+
+
 def validate_request(data):
     if not isinstance(data, dict):
         raise AppError("Request must be a JSON object.")
+    language = data.get("language", "en")
+    if not isinstance(language, str) or language not in LANGUAGES:
+        raise AppError("Unknown language.")
     title = clean_string(data.get("title", "Imported brief"), "source name", 300)
     text = clean_string(data.get("text"), "source text", MAX_SOURCE_CHARS)
     if len(text) < 20:
@@ -146,14 +163,14 @@ def validate_request(data):
     limit = data.get("max_tasks", 80)
     if isinstance(limit, bool) or not isinstance(limit, int) or not 10 <= limit <= 100:
         raise AppError("Task limit must be between 10 and 100.")
-    return {"title": title or "Imported brief", "text": text, "model": model, "max_tasks": limit, "provider": provider}
+    return {"title": title or "Imported brief", "text": text, "model": model, "max_tasks": limit, "provider": provider, "language": language}
 
 
 def make_payload(data):
     return {
         "model": data["model"],
         "store": False,
-        "instructions": INSTRUCTIONS + f"\nUse at most {data['max_tasks']} records including groups.",
+        "instructions": plan_instructions(data),
         "input": json.dumps({"source_name": data["title"], "brief_text": data["text"]}, ensure_ascii=False),
         "max_output_tokens": 24000,
         "text": {"format": {"type": "json_schema", "name": "briefboard_plan",
@@ -498,7 +515,7 @@ def run_codex(data, cancel=None, timeout=CODEX_TIMEOUT_SECONDS):
         raise AppError(status["message"], 503)
     binary = find_codex()
     cancel = cancel or threading.Event()
-    prompt = INSTRUCTIONS + f"\nUse at most {data['max_tasks']} records including groups." + CODEX_PROMPT_EXTRA
+    prompt = plan_instructions(data) + CODEX_PROMPT_EXTRA
     brief = json.dumps({"source_name": data["title"], "brief_text": data["text"]}, ensure_ascii=False)
     try:
         code, text = codex_quick(binary, ["features", "list"])

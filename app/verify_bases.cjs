@@ -1,6 +1,6 @@
 const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/strict');
 const elements=new Map();
-const context=vm.createContext({console,document:{body:{style:{}},addEventListener(){},getElementById(id){if(!elements.has(id))elements.set(id,{innerHTML:'',focus(){}});return elements.get(id);},querySelectorAll(){return[];},querySelector(){return null;}},setTimeout,clearTimeout});
+const context=vm.createContext({currentLanguage:'en',languageSwitcher:()=>'',console,document:{body:{style:{}},addEventListener(){},getElementById(id){if(!elements.has(id))elements.set(id,{innerHTML:'',focus(){}});return elements.get(id);},querySelectorAll(){return[];},querySelector(){return null;}},setTimeout,clearTimeout});
 for(const file of ['dist/base_projects.js','dist/seed.js'])vm.runInContext(fs.readFileSync(file,'utf8'),context);
 vm.runInContext(fs.readFileSync('dist/app.js','utf8').replace(/init\(\);\s*$/,''),context);
 const run=s=>vm.runInContext(s,context);

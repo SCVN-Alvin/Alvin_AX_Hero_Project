@@ -1,7 +1,7 @@
 const fs=require('node:fs');
 const vm=require('node:vm');
 const assert=require('node:assert/strict');
-const context=vm.createContext({console,document:{addEventListener(){}},setTimeout,clearTimeout});
+const context=vm.createContext({currentLanguage:'en',languageSwitcher:()=>'',console,document:{addEventListener(){}},setTimeout,clearTimeout});
 vm.runInContext(fs.readFileSync('dist/base_projects.js','utf8'),context);
 vm.runInContext(fs.readFileSync('dist/seed.js','utf8'),context);
 vm.runInContext(fs.readFileSync('dist/app.js','utf8').replace(/init\(\);\s*$/,''),context);

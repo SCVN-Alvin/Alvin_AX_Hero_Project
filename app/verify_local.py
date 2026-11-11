@@ -235,6 +235,23 @@ class CodexTests(unittest.TestCase):
         self.assertNotIn("OPENAI_API_KEY", call["env"])
         self.assertFalse(Path(call["cwd"]).exists())
 
+    def test_plan_language_reaches_both_providers(self):
+        self.assertIn("structured plan in English.", app.make_payload(self.request())["instructions"])
+        data = app.validate_request({"title": "Test", "text": SOURCE, "provider": "codex", "language": "ko", "max_tasks": 40})
+        self.assertIn("structured plan in Korean.", app.make_payload(data)["instructions"])
+        self.assertIn("original language", app.make_payload(data)["instructions"])
+        app.generate_plan_codex(data)
+        prompt = self.call()["argv"][-1]
+        self.assertIn("structured plan in Korean.", prompt)
+        self.assertNotIn("structured plan in English.", prompt)
+        vietnamese = app.validate_request({"text": SOURCE, "language": "vi"})
+        self.assertIn("structured plan in Vietnamese.", app.make_payload(vietnamese)["instructions"])
+
+    def test_unknown_language_rejected(self):
+        for language in ("fr", ["ko"], 1):
+            with self.assertRaisesRegex(app.AppError, "language"):
+                app.validate_request({"text": SOURCE, "language": language})
+
     def test_requested_model_is_passed(self):
         result = app.generate_plan_codex(self.request("gpt-test"))
         argv = self.call()["argv"]

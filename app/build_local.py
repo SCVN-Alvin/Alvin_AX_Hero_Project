@@ -26,8 +26,8 @@ def main():
     css = re.sub(r"(?m)^@import[^\n]*\n?", "", (DIST / "styles.css").read_text())
     css += "\n" + (DIST / "base_projects.css").read_text() + "\n" + (ROOT / "local_ai.css").read_text()
     # The local server's content policy allows data: fonts only, which also keeps index.html self-contained.
-    font = data_url(DIST / "assets" / "PretendardVariable.woff2", "font/woff2")
-    css = css.replace("url(assets/PretendardVariable.woff2)", "url(" + font + ")")
+    css = re.sub(r"url\(assets/([\w.-]+\.woff2)\)",
+                 lambda m: "url(" + data_url(DIST / "assets" / m[1], "font/woff2") + ")", css)
     sources = (DIST / "sources.json").read_text()
     # JSON is placed inside a script tag; escape '<' to prevent closing the tag.
     sources_js = json.dumps(json.loads(sources), ensure_ascii=False).replace("<", "\\u003c")
@@ -41,10 +41,10 @@ def main():
     app = app.replace('src="${esc(im.url)}"', 'src="${esc(LOCAL_ASSETS[im.url]||im.url)}"')
     app = app.replace('href="source-brief.txt"', 'href="' + data_url(DIST / "source-brief.txt", "text/plain;charset=utf-8") + '"')
     app = re.sub(r"\ninit\(\);\s*$", "\n", app)
-    app += "\n" + (DIST / "base_projects.js").read_text() + "\n" + (ROOT / "local_ai.js").read_text() + "\ninit();\n"
+    app += "\n" + (DIST / "i18n.js").read_text() + "\n" + (DIST / "base_projects.js").read_text() + "\n" + (ROOT / "local_ai.js").read_text() + "\ninit();\n"
     html = (DIST / "index.html").read_text()
     html = html.replace('<title>Briefboard · Crusher Factory</title>', '<title>Briefboard Local · OpenAI Planner</title>')
-    html = html.replace('<script src="base_projects.js"></script>', '').replace('<link rel="stylesheet" href="base_projects.css">', '')
+    html = html.replace('<script src="i18n.js"></script>', '').replace('<script src="base_projects.js"></script>', '').replace('<link rel="stylesheet" href="base_projects.css">', '')
     html = html.replace('<link rel="stylesheet" href="styles.css">', '<style>\n' + css + '\n</style>')
     html = html.replace('<script src="seed.js"></script>', script(bootstrap) + '\n' + script((DIST / "seed.js").read_text()))
     html = html.replace('<script src="app.js"></script>', script(app))
@@ -105,7 +105,8 @@ to Codex. It is never embedded in HTML, browser storage, workspace exports or
 server logs. The server listens only on 127.0.0.1. AI generation submits the
 imported text and source name only when requested, with no automatic retries.
 API-key usage bills the configured API project.
-The Pretendard font is embedded in index.html, so no font requests are made.
+Pretendard and Be Vietnam Pro are embedded in index.html, so no font requests are made.
+Use ENG / KR / VN in the top bar to change the interface and the language of AI plans.
 Source HTML is converted to text. Linked images, videos and Google Slides
 are not retrieved or analyzed. This demo supports video tags 001 through 008.
 
